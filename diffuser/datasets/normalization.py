@@ -9,7 +9,6 @@ POINTMASS_KEYS = ['observations', 'actions', 'next_observations', 'deltas']
 #-----------------------------------------------------------------------------#
 
 class DatasetNormalizer:
-
     def __init__(self, dataset, normalizer, path_lengths=None):
         dataset = flatten(dataset, path_lengths)
 
@@ -155,6 +154,9 @@ class LimitsNormalizer(Normalizer):
     '''
         maps [ xmin, xmax ] to [ -1, 1 ]
     '''
+
+    def __init__(self, X):
+        super().__init__(X)
 
     def normalize(self, x):
         ## [ 0, 1 ]

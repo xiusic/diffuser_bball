@@ -5,6 +5,7 @@ import torch
 import pdb
 
 from collections import namedtuple
+from diffuser.datasets.sequence import BBSequenceDataset, BBwdGoalDataset, BBwDirStatSequenceDataset
 
 DiffusionExperiment = namedtuple('Diffusion', 'dataset renderer model diffusion ema trainer epoch')
 
@@ -44,8 +45,18 @@ def load_diffusion(*loadpath, epoch='latest', device='cuda:0', seed=None):
     ## @TODO : remove results folder from within trainer class
     trainer_config._dict['results_folder'] = os.path.join(*loadpath)
 
-    dataset = dataset_config(seed=seed)
-    renderer = render_config()
+    if loadpath[1] == "basketball_single_game":
+        dataset = BBSequenceDataset("./data/0021500549.npy")
+    elif loadpath[1] == "basketball_single_game_wd" or loadpath[1] == "basketball_single_game_wd_TS1000000":
+        # dataset = BBwdGoalDataset("./data/01.14.2016.LAL.at.GSW_dir.ny")
+        dataset = BBwdGoalDataset("./data/0021500549_dir.npy", reward_path="./data/LAL_rewardmap_og_motion.json")
+    elif loadpath[1] == "basketball_single_game_wDirStat":
+        dataset = BBwDirStatSequenceDataset("/home/xchen/MURI/diffuser/0021500549_dir_stats_reshape.npy")
+    else:
+        dataset = dataset_config(seed=seed)
+
+    renderer = None
+    # renderer = render_config()
     model = model_config()
     diffusion = diffusion_config(model)
     trainer = trainer_config(diffusion, dataset, renderer)

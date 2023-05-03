@@ -24,20 +24,43 @@ class GuidedPolicy:
         conditions = {k: self.preprocess_fn(v) for k, v in conditions.items()}
         conditions = self._format_conditions(conditions, batch_size)
 
-        ## run reverse diffusion process
+        def make_timesteps(batch_size, i, device):
+            t = torch.full((batch_size,), i, device=device, dtype=torch.long)
+            return t
+
+        # ## run reverse diffusion process
         samples = self.diffusion_model(conditions, guide=self.guide, verbose=verbose, **self.sample_kwargs)
         trajectories = utils.to_np(samples.trajectories)
+        # t = make_timesteps(batch_size, 0, samples.trajectories.device)
+        # values = self.guide(samples.trajectories, None, t)
+        # print(samples.trajectories)
+        # print(values)
+        # print()
+        # 1/0
+
+
+        ### non-guided
+        # samples = self.diffusion_model(conditions)
+        # trajectories = utils.to_np(samples.trajectories)
+        # t = make_timesteps(batch_size, 0, samples.trajectories.device)
+        # values = self.guide(samples.trajectories, None, t)
+        # # # print(samples.trajectories)
+        # # print(values)
+        # # print()
+        # # 1/0
+
 
         ## extract action [ batch_size x horizon x transition_dim ]
         actions = trajectories[:, :, :self.action_dim]
-        actions = self.normalizer.unnormalize(actions, 'actions')
+        # actions = self.normalizer.unnormalize(actions)                             # [BUG]: zero-size array cannot normalize
 
         ## extract first action
         action = actions[0, 0]
 
         normed_observations = trajectories[:, :, self.action_dim:]
-        observations = self.normalizer.unnormalize(normed_observations, 'observations')
+        observations = self.normalizer.unnormalize(normed_observations)
 
+        # trajectories = Trajectories(actions, observations, values)
         trajectories = Trajectories(actions, observations, samples.values)
         return action, trajectories
 
@@ -47,11 +70,11 @@ class GuidedPolicy:
         return parameters[0].device
 
     def _format_conditions(self, conditions, batch_size):
-        conditions = utils.apply_dict(
-            self.normalizer.normalize,
-            conditions,
-            'observations',
-        )
+        # [BUG]: self.normalizer is a string instead of a class
+        # conditions = utils.apply_dict(
+        #     self.normalizer.normalize,
+        #     conditions,
+        # )
         conditions = utils.to_torch(conditions, dtype=torch.float32, device='cuda:0')
         conditions = utils.apply_dict(
             einops.repeat,
