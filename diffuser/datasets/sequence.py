@@ -3,6 +3,10 @@ import numpy as np
 import torch
 import pdb
 import json
+import os
+import pickle
+import time
+from tqdm import tqdm
 
 from .preprocessing import get_preprocess_fn
 from .d4rl import load_environment, sequence_dataset
@@ -169,55 +173,92 @@ class BBSequenceDataset(torch.utils.data.Dataset):
 class BBwdSequenceDataset(torch.utils.data.Dataset):
 
     def __init__(self, filepath, reward_path=None):
-        
-        self.observations = np.load(filepath, allow_pickle=True) #TODO  (N * T * d)
         self.observation_dim = 66
         self.action_dim = 0
 
         ### hard code
         self.max_path_length = 1024
 
+        # 480 files
+        observation_paths = [os.path.join(filepath, f) for f in os.listdir(filepath) if "2016" in f and "dir" in f]
+        # observation_paths = [os.path.join(filepath, f) for f in os.listdir(filepath) if "2015" in f and "dir" in f]
+
+        print(f"file count: {len(observation_paths)}")
+
         if reward_path is not None:
-            with open(reward_path) as f:
-                self.rewards = json.load(f)
+            reward_paths = [os.path.join(reward_path, f) for f in os.listdir(reward_path) if "2016" in f]
+            # reward_paths = [os.path.join(reward_path, f) for f in os.listdir(reward_path) if "2015" in f]
+            print(f"reward count: {len(reward_paths)}")
+        
+        # load the processed file if already processed it
+        observation_file = f"{filepath}processed_observations_test_unnormalized.pkl"
+        reward_file = f"{reward_path}processed_rewards_test_unnormalized.pkl"
+        trajectory_game_file = f"{reward_path}processed_trajectory_game_test_unnormalized.pkl"
+        if not os.path.isfile(observation_file):
+            valid_observations, valid_rewards = [], []
+            trajectory_game_record = []
+            for index, observation_path in tqdm(enumerate(observation_paths), total=len(observation_paths), desc="processing files: "):
+                # process observation file
+                observations = np.load(observation_path, allow_pickle=True)
 
-        max_len = -1
-        for obs in self.observations:
-            if len(obs) > max_len:
-                max_len = len(obs)
+                if reward_path is not None:
+                    game_info = observation_path.split("/")[-1].split("_dir")[0]            # 11.06.2015.TOR.at.ORL
+                    with open(f"{reward_path}{game_info}.7z_rewards.json") as f:
+                        rewards = json.load(f)
 
-        # # hard code for testing data
-        # max_len = 1024
+                for i in range(len(observations)):
+                    try:
+                        last_observation = observations[i][-1].astype(np.float32)
+                    except:
+                        continue
 
-        valid_observations, valid_rewards = [], []
-        for i in range(len(self.observations)):
-            # self.observations[i] = np.pad(self.observations[i], (0, max_len-len(self.observations[i])), 'constant')
-            # self.observations[i] = np.concatenate([self.observations[i], np.zeros((max_len-len(self.observations[i]), self.observations[i].shape[-1]))])
-            try:
-                last_observation = self.observations[i][-1].astype(np.float32)
-            except:
-                continue
-            
-            paddings = np.zeros((max_len-len(self.observations[i]), self.observations[i].shape[-1]))
-            
-            paddings += last_observation
-            self.observations[i] = np.concatenate([self.observations[i], paddings])
-            try:
-                self.observations[i] = self.observations[i].astype(np.float32)
-            except:
-                continue
-            valid_observations.append(self.observations[i])
+                    # pad if less than self.max_path_length
+                    if len(observations[i]) >= self.max_path_length:
+                        observations[i] = observations[i][:self.max_path_length]
+                    else:
+                        paddings = np.zeros((self.max_path_length-len(observations[i]), observations[i].shape[-1]))
+                        paddings += last_observation
+                        observations[i] = np.concatenate([observations[i], paddings])
+                    try:
+                        observations[i] = observations[i].astype(np.float32)
+                    except:
+                        continue
+
+                    valid_observations.append(observations[i])
+                    trajectory_game_record.append(observation_path.split("/")[-1])      # 2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir.npy
+
+                    # process reward file
+                    if reward_path is not None:
+                        valid_rewards.append(rewards[str(i)])
+
+            self.observations = np.array(valid_observations)
+            self.observations = self.observations[:, :1024, :]
+            self.normalize()
+            self.trajectory_game_record = np.array(trajectory_game_record)
             if reward_path is not None:
-                valid_rewards.append(self.rewards[str(i)])
+                self.rewards = np.array(valid_rewards)
+                with open(reward_file, 'wb') as file:
+                    pickle.dump(self.rewards, file)
 
-        self.observations = np.concatenate([np.expand_dims(ob, axis=0) for ob in valid_observations])
-        self.observations  = self.observations[:, :1024, :]
-        if reward_path is not None:
-            self.rewards = np.array(valid_rewards)
+            with open(observation_file, 'wb') as file:
+                pickle.dump(self.observations, file)
+            with open(trajectory_game_file, 'wb') as file:
+                pickle.dump(self.trajectory_game_record, file)
+        else:
+            with open(observation_file, 'rb') as file:
+                self.observations = pickle.load(file)
+            with open(trajectory_game_file, 'rb') as file:
+                self.trajectory_game_record = pickle.load(file)
+
+            if reward_path is not None:
+                with open(reward_file, 'rb') as file:
+                    self.rewards = pickle.load(file)
+
+        print(self.observations.shape, self.trajectory_game_record.shape)
+        # 210952 (train); 68701 (test)]
 
         self.normalizer = LimitsNormalizer(self.observations)
-        self.normalize()
-
+        self.normalize()                                        # used when the input file is unnormalized
         
     def normalize(self):
         self.observations  = self.observations.reshape(-1, 66)
