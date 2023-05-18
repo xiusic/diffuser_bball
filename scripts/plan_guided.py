@@ -2,6 +2,7 @@ import pdb
 import os
 import random
 import torch
+import numpy as np
 from tqdm import tqdm
 
 import diffuser.sampling as sampling
@@ -18,8 +19,9 @@ class Parser(utils.Parser):
 
 args = Parser().parse_args('plan')
 args.horizon = 1024
-# args.t_stopgrad = 0
-# args.scale = 10
+# args.t_stopgrad = 1
+# args.n_guide_steps = 4
+args.scale = 0.1
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -87,86 +89,50 @@ policy = policy_config()
 #--------------------------------- main loop ---------------------------------#
 #-----------------------------------------------------------------------------#
 
-# 448 trajectories
-# guided: 543.95
-# no-guided: 542.72 / 544.25
-# data sum: 540.25
-
-# test set: 447 trajectories
-# guided: 529.11
-# non-guided: 528.31
-
 SAMPLING_NUM = 5
-total_reward = 0
-for index in tqdm(range(dataset.observations.shape[0]), desc="Planning: "):
-    # index = 0, reward = 0
-    observation = dataset.observations[index, 1]
-    # print(f"reward: {dataset.rewards[index]}")
+total_reward = np.array([0]*5)
+groundtruth_reward = 0
+path = f"./logs/guided_samples_{args.scale}"
+# SUBSET = 5000
+# COUNT = 9
+# reward_log = open(f"{path}/reward_{SUBSET*COUNT}_{SUBSET*COUNT+SUBSET}.log", "w")
+pbar = tqdm(range(len(dataset)), desc="Planning: ")
+for index in pbar:
+    observation = dataset.observations[index, 0]
+    groundtruth_reward += dataset.rewards[index]
+    game_info = dataset.trajectory_game_record[index].split(".npy")[0]
 
-    ## format current observation for conditioning
-    conditions = {0: observation}
-    # conditions = {0: observation, args.horizon-1: dataset.observations[index, -1]}
-    action, samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
-
-    total_reward += samples.values.max().item()
-
-    # savepath = os.path.join('./logs', f'sample-test-guided.npy')
-    # print(savepath)
-    # print(type(samples.observations.shape), samples.observations.shape)
-    # torch.save(samples.observations, savepath)
-
+    # savepath = os.path.join(f'{path}', f'{game_info}-{index}-groundtruth.npy')
+    # torch.save(dataset.observations[index, :], savepath)
     # 1/0
 
-    # fix normalizer [DONE]
-    # dump trajectories [DONE]
-    # compute rewards between non-guided diffusion function and guided function on another match
-
-print(f"Total reward: {total_reward}")
-
-
-
-"""
-# env = dataset.env
-# observation = env.reset()
-
-## observations for rendering
-rollout = [observation.copy()]
-
-total_reward = 0
-for t in range(args.max_episode_length):
-
-    if t % 10 == 0: print(args.savepath, flush=True)
-
-    # ## save state for rendering only
-    # state = env.state_vector().copy()
-
     ## format current observation for conditioning
     conditions = {0: observation}
-    action, samples = policy(conditions, batch_size=2, verbose=args.verbose)
+    action, samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
+    total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
 
-    # ## execute action in environment
-    # next_observation, reward, terminal, _ = env.step(action)
+    # print("GUIDED")
+    savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
+    # print(savepath)
+    torch.save(samples.observations, savepath)
+    # print(samples.values)
 
-    # ## print reward and score
-    # total_reward += reward
-    # score = env.get_normalized_score(total_reward)
-    # print(
-    #     f't: {t} | r: {reward:.2f} |  R: {total_reward:.2f} | score: {score:.4f} | '
-    #     f'values: {samples.values} | scale: {args.scale}',
-    #     flush=True,
-    # )
+    # print("NON-GUIDED")
+    # savepath = os.path.join(f'{path}', f'{game_info}-{index}-nonguided-245K.npy')
+    # print(savepath)
+    # torch.save(non_guided_samples.observations, savepath)
+    # print(non_guided_samples.values)
+    # 1/0
+    # reward_log.write(f"{game_info},{samples.values.cpu().detach().numpy()}")
+    # reward_log.write("\n")
 
-    # ## update rollout observations
-    # rollout.append(next_observation.copy())
+    if index > 0 and index % 300 == 0:
+        print(f"[Step: {index}] [Reward: {total_reward}]")
 
-    # ## render every `args.vis_freq` steps
-    # logger.log(t, samples, state, rollout)
+    pbar.set_description(f"[GT reward: {groundtruth_reward}] [Reward: {total_reward}]", refresh=True)
 
-    # if terminal:
-    #     break
+print(f"Total reward: {total_reward}")
+print(f"[Mean: {total_reward.mean()}] [MAX: {total_reward.max()}] [Std: {total_reward.std()}]")
+print(f"Ground truth reward: {groundtruth_reward}")
+# print(SUBSET*COUNT, SUBSET*COUNT+SUBSET)
 
-    # observation = next_observation
-
-# ## write results to json file at `args.savepath`
-# logger.finish(t, score, total_reward, terminal, diffusion_experiment, value_experiment)
-"""
