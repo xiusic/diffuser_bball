@@ -28,27 +28,17 @@ class GuidedPolicy:
             t = torch.full((batch_size,), i, device=device, dtype=torch.long)
             return t
 
-        # ## run reverse diffusion process
+        ## run reverse diffusion process
         samples = self.diffusion_model(conditions, guide=self.guide, verbose=verbose, **self.sample_kwargs)
         trajectories = utils.to_np(samples.trajectories)
-        # t = make_timesteps(batch_size, 0, samples.trajectories.device)
-        # values = self.guide(samples.trajectories, None, t)
-        # print(samples.trajectories)
-        # print(values)
-        # print()
-        # 1/0
+        t = make_timesteps(batch_size, 0, samples.trajectories.device)
+        values = self.guide(samples.trajectories, None, t)
 
-
-        ### non-guided
+        # ### non-guided
         # samples = self.diffusion_model(conditions)
         # trajectories = utils.to_np(samples.trajectories)
         # t = make_timesteps(batch_size, 0, samples.trajectories.device)
         # values = self.guide(samples.trajectories, None, t)
-        # # # print(samples.trajectories)
-        # # print(values)
-        # # print()
-        # # 1/0
-
 
         ## extract action [ batch_size x horizon x transition_dim ]
         actions = trajectories[:, :, :self.action_dim]
@@ -60,8 +50,7 @@ class GuidedPolicy:
         normed_observations = trajectories[:, :, self.action_dim:]
         observations = self.normalizer.unnormalize(normed_observations)
 
-        # trajectories = Trajectories(actions, observations, values)
-        trajectories = Trajectories(actions, observations, samples.values)
+        trajectories = Trajectories(actions, observations, values)
         return action, trajectories
 
     @property
