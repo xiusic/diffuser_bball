@@ -16,7 +16,7 @@ args = Parser().parse_args('values')
 
 ## Override
 args.horizon = 1024
-args.batch_size = 128
+args.batch_size = 512
 args.loader = 'datasets.BBwdValueDataset'
 # args.learning_rate = 2e-5
 # key: play id / possession
@@ -50,7 +50,7 @@ render_config = utils.Config(
 if args.dataset == "basketball_single_game":
     dataset = BBSequenceDataset("./data/0021500549.npy")
 elif args.dataset == "basketball_single_game_wd" or args.dataset == "basketball_single_game_wd_TS1000000":
-    dataset = BBwdValueDataset("./data/0021500549_dir.npy", reward_path="./data/LAL_rewardmap_og_motion.json")
+    dataset = BBwdValueDataset("./data/clean_trajectories_2/", reward_path="./data/2_final_json_rewards/")
 elif args.dataset == "basketball_single_game_wDirStat":
     dataset = BBwDirStatSequenceDataset("/home/xchen/MURI/diffuser/0021500549_dir_stats_reshape.npy")
 else:

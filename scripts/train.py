@@ -14,7 +14,7 @@ class Parser(utils.Parser):
 args = Parser().parse_args('diffusion')
 
 args.horizon = 1024
-args.batch_size = 1024
+args.batch_size = 1300
 # args.learning_rate = 2e-5
 #-----------------------------------------------------------------------------#
 #---------------------------------- dataset ----------------------------------#
@@ -39,9 +39,9 @@ render_config = utils.Config(
 
 
 if args.dataset == "basketball_single_game":
-    dataset = BBSequenceDataset("/home/xchen/MURI/diffuser/0021500549.npy")
+    dataset = BBSequenceDataset("./data/0021500549.npy")
 elif args.dataset == "basketball_single_game_wd" or args.dataset == "basketball_single_game_wd_TS1000000":
-    dataset = BBwdSequenceDataset("/home/xchen/MURI/diffuser/0021500549_dir.npy")
+    dataset = BBwdSequenceDataset("./data/clean_trajectories_2/", reward_path="./data/2_final_json_rewards/")
 elif  args.dataset == "basketball_single_game_wDirStat":
     dataset = BBwDirStatSequenceDataset("/home/xchen/MURI/diffuser/0021500549_dir_stats_reshape.npy")
 else:
