@@ -92,7 +92,7 @@ policy = policy_config()
 SAMPLING_NUM = 5
 total_reward = np.array([0]*5)
 groundtruth_reward = 0
-path = f"./logs/guided_samples_{args.scale}"
+path = f"/local2/yao/diffuser/logs/guided_samples_{args.scale}"
 # SUBSET = 5000
 # COUNT = 9
 # reward_log = open(f"{path}/reward_{SUBSET*COUNT}_{SUBSET*COUNT+SUBSET}.log", "w")
@@ -105,6 +105,8 @@ for index in pbar:
     # savepath = os.path.join(f'{path}', f'{game_info}-{index}-groundtruth.npy')
     # torch.save(dataset.observations[index, :], savepath)
     # 1/0
+
+    # sample the first 6 channels and get the first frame of the 1024
 
     ## format current observation for conditioning
     conditions = {0: observation}

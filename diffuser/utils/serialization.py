@@ -46,10 +46,11 @@ def load_diffusion(*loadpath, epoch='latest', device='cuda:0', seed=None):
     trainer_config._dict['results_folder'] = os.path.join(*loadpath)
 
     if loadpath[1] == "basketball_single_game":
-        dataset = BBSequenceDataset("./data/0021500549.npy")
+        dataset = BBSequenceDataset("/home/xchen/MURI/diffuser/0021500549.npy")
     elif loadpath[1] == "basketball_single_game_wd" or loadpath[1] == "basketball_single_game_wd_TS1000000":
         # dataset = BBwdGoalDataset("./data/01.14.2016.LAL.at.GSW_dir.ny")
-        dataset = BBwdGoalDataset("./data/0021500549_dir.npy", reward_path="./data/LAL_rewardmap_og_motion.json")
+        dataset = BBwdGoalDataset("/local2/yao/diffuser/data/clean_trajectories_2/", reward_path="/local2/yao/diffuser/data/2_final_json_rewards/")
+        # dataset = BBwdGoalDataset("/home/xchen/MURI/diffuser/0021500549_dir.npy", reward_path="/home/xchen/MURI/diffuser/LAL_rewardmap_og_motion.json")
     elif loadpath[1] == "basketball_single_game_wDirStat":
         dataset = BBwDirStatSequenceDataset("/home/xchen/MURI/diffuser/0021500549_dir_stats_reshape.npy")
     else:

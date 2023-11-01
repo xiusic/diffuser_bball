@@ -147,7 +147,7 @@ class Parser(Tap):
 
     def mkdir(self, args):
         if 'logbase' in dir(args) and 'dataset' in dir(args) and 'exp_name' in dir(args):
-            args.savepath = os.path.join(args.logbase, args.dataset, args.exp_name)
+            args.savepath = os.path.join("/local2/dmreynos/diffuser_bball/logs/", args.dataset, args.exp_name)
             self._dict['savepath'] = args.savepath
             if 'suffix' in dir(args):
                 args.savepath = os.path.join(args.savepath, args.suffix)

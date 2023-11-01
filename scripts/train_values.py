@@ -48,9 +48,9 @@ render_config = utils.Config(
 )
 
 if args.dataset == "basketball_single_game":
-    dataset = BBSequenceDataset("./data/0021500549.npy")
+    dataset = BBSequenceDataset("/home/xchen/MURI/diffuser/0021500549.npy")
 elif args.dataset == "basketball_single_game_wd" or args.dataset == "basketball_single_game_wd_TS1000000":
-    dataset = BBwdValueDataset("./data/clean_trajectories_2/", reward_path="./data/2_final_json_rewards/")
+    dataset = BBwdValueDataset("/local2/yao/diffuser/data/clean_trajectories_2/", reward_path="/local2/yao/diffuser/data/2_final_json_rewards/")
 elif args.dataset == "basketball_single_game_wDirStat":
     dataset = BBwDirStatSequenceDataset("/home/xchen/MURI/diffuser/0021500549_dir_stats_reshape.npy")
 else:

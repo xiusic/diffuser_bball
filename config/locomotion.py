@@ -134,7 +134,7 @@ base = {
         'n_diffusion_steps': 20,
 
         ## value function
-        'discount': 0.997,
+        'discount': 0.99,
 
         ## loading
         'diffusion_loadpath': 'f:diffusion/defaults_H{horizon}_T{n_diffusion_steps}',
