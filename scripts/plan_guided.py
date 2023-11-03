@@ -1,5 +1,6 @@
 import pdb
 import os
+import sys
 import random
 import torch
 import numpy as np
@@ -92,18 +93,32 @@ policy = policy_config()
 SAMPLING_NUM = 5
 total_reward = np.array([0]*5)
 groundtruth_reward = 0
-path = f"/local2/yao/diffuser/logs/guided_samples_{args.scale}"
+path = f"./logs/guided_samples_{args.scale}"
+folder_existed = True
+if not os.path.exists(path):
+    os.makedirs(path)
+    print(f"Directory {path} created.")
+    folder_existed = False
+else:
+    print(f"Directory {path} already exists.")
+    folder_existed = True
 # SUBSET = 5000
 # COUNT = 9
 # reward_log = open(f"{path}/reward_{SUBSET*COUNT}_{SUBSET*COUNT+SUBSET}.log", "w")
 pbar = tqdm(range(len(dataset)), desc="Planning: ")
 for index in pbar:
+    print(f"posession #{index}")
     observation = dataset.observations[index, 0]
+    print(observation.shape)
+    print(dataset.observations.shape)
+    print(type(observation))
+    # print(observation)
     groundtruth_reward += dataset.rewards[index]
     game_info = dataset.trajectory_game_record[index].split(".npy")[0]
-
-    # savepath = os.path.join(f'{path}', f'{game_info}-{index}-groundtruth.npy')
-    # torch.save(dataset.observations[index, :], savepath)
+    
+    if not folder_existed:
+        savepath = os.path.join(f'{path}', f'{game_info}-{index}-groundtruth.npy')
+        torch.save(dataset.observations[index, :], savepath)
     # 1/0
 
     # sample the first 6 channels and get the first frame of the 1024
@@ -111,13 +126,21 @@ for index in pbar:
     ## format current observation for conditioning
     conditions = {0: observation}
     action, samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
+    # print(samples.observations.shape)
+    # print(samples.values.shape)
+    # print(samples.actions.shape)
+    # print(action.shape)
+    # print(action.type)
+    # print(action)
+    # print(samples)
     total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
 
     # print("GUIDED")
-    savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
-    # print(savepath)
-    torch.save(samples.observations, savepath)
-    # print(samples.values)
+    if not folder_existed:
+        savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
+        print(savepath)
+        torch.save(samples.observations, savepath)
+        print(samples.values)
 
     # print("NON-GUIDED")
     # savepath = os.path.join(f'{path}', f'{game_info}-{index}-nonguided-245K.npy')
