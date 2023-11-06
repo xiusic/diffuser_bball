@@ -8,6 +8,8 @@ from tqdm import tqdm
 
 import diffuser.sampling as sampling
 import diffuser.utils as utils
+from diffuser.sampling.policies import Trajectories
+from scipy.spatial.distance import cdist
 
 
 #-----------------------------------------------------------------------------#
@@ -89,6 +91,30 @@ policy = policy_config()
 #-----------------------------------------------------------------------------#
 #--------------------------------- main loop ---------------------------------#
 #-----------------------------------------------------------------------------#
+def update_heuristics(observation, next_obs):
+    obs = observation.reshape(11, 6)
+    nxt_obs = next_obs.reshape(11, 6)
+    player_observation = obs[2:6, :]  
+    opponents_observation = obs[6:11, :] 
+
+    player_positions = obs[2:6, :3]  
+    opponents_positions = obs[6:11, :3] 
+
+    # Euclidean distances between the player and each opposing player
+    distances = cdist(opponents_positions, player_positions)
+
+    # index of the closest opponent for each player
+    closest_opponent_indices = np.argmin(distances, axis=1)
+
+    # make the movement columns the xyz position of next_obs minus the xyz in observation
+    nxt_obs[6:11, 3:] = nxt_obs[6:11, :3] - obs[6:11, :3]
+
+    # move the opponents somewhere close to the player in next_obs that they are closeest to
+    for opponent_index , player_index in enumerate(closest_opponent_indices):
+        offset = np.min(distances, axis = 1)[opponent_index]
+        nxt_obs[opponent_index, :3] = nxt_obs[player_index, :3] + offset
+    return nxt_obs.flatten()
+
 
 SAMPLING_NUM = 5
 total_reward = np.array([0]*5)
@@ -109,9 +135,12 @@ pbar = tqdm(range(len(dataset)), desc="Planning: ")
 for index in pbar:
     print(f"posession #{index}")
     observation = dataset.observations[index, 0]
-    print(observation.shape)
-    print(dataset.observations.shape)
-    print(type(observation))
+    # print(dataset.observations)
+
+    # print(dataset.observations[5])
+    # print(observation.shape) (66,)
+    # print(dataset.observations.shape) (68701, 1024, 66)
+    # print(type(observation)) <class 'numpy.ndarray'>
     # print(observation)
     groundtruth_reward += dataset.rewards[index]
     game_info = dataset.trajectory_game_record[index].split(".npy")[0]
@@ -125,16 +154,38 @@ for index in pbar:
 
     ## format current observation for conditioning
     conditions = {0: observation}
+    samples = None
+    for i in range(1024):
+        action, temp_samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
+        obs = update_heuristics(observation, temp_samples.observations[i:i + 1])
+        if samples is None:
+        # first iteration, assign the selected temp_samples to the samples object
+            samples = Trajectories(
+                actions=temp_samples.actions[i:i + 1],
+                observations=obs,
+                values=temp_samples.values[i:i + 1]
+            )
+        else:
+            # Concatenate the new ith temp_samples with the existing samples
+            samples = Trajectories(
+                actions=torch.cat([samples.actions, temp_samples.actions[i:i + 1]], dim=0),
+                observations=torch.cat([samples.observations, obs], dim=0),
+                values=torch.cat([samples.values, temp_samples.values[i:i + 1]], dim=0)
+            )
+        #replace starting condition (idea 1)
+        conditions = {0: obs}
+        #add in condition (idea 2)
+        conditions[i] = obs
+
     action, samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
-    # print(samples.observations.shape)
-    # print(samples.values.shape)
-    # print(samples.actions.shape)
-    # print(action.shape)
-    # print(action.type)
-    # print(action)
+    # print(samples.observations.shape) (5, 1024, 66) 
+    # print(samples.values.shape) torch.Size([5])
+    # print(samples.actions.shape) (5, 1024, 0)
+    print(samples.actions)
+    print(action)
     # print(samples)
     total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
-
+    break
     # print("GUIDED")
     if not folder_existed:
         savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
