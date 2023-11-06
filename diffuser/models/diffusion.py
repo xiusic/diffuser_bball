@@ -169,8 +169,10 @@ class GaussianDiffusion(nn.Module):
         for i in reversed(range(0, self.n_timesteps)):
             t = make_timesteps(batch_size, i, device)
             x, values = sample_fn(self, x, cond, t, **sample_kwargs)
+            # print('look')
+            # print(x.shape) [5, 1024, 66]
+            # print(cond)
             x = apply_conditioning(x, cond, self.action_dim)
-
             progress.update({'t': i, 'vmin': values.min().item(), 'vmax': values.max().item()})
             if return_chain: chain.append(x)
 
