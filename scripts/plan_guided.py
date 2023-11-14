@@ -54,6 +54,12 @@ value_experiment = utils.load_diffusion(
 diffusion = diffusion_experiment.ema
 dataset = diffusion_experiment.dataset
 renderer = diffusion_experiment.renderer
+# print(dataset.mins.shape)
+# print(dataset.normalizer)
+# break
+# print(dataset.unnormalize(dataset.observations[0, 1]))
+# print(dir(dataset))
+# exit()
 
 ## initialize value guide
 value_function = value_experiment.ema
@@ -94,32 +100,68 @@ policy = policy_config()
 def update_heuristics(observation, next_obs):
     obs = observation.reshape(11, 6)
     nxt_obs = next_obs.reshape(11, 6)
-    player_observation = obs[2:6, :]  
-    opponents_observation = obs[6:11, :] 
+    # player_observation = obs[2:6, :]  
+    # opponents_observation = obs[6:11, :] 
 
-    player_positions = obs[2:6, :3]  
+    player_positions = obs[1:6, :3]  
     opponents_positions = obs[6:11, :3] 
+    nxt_player_positions = nxt_obs[1:6, :3] 
+    nxt_opponents_positions = nxt_obs[6:11, :3] 
 
     # Euclidean distances between the player and each opposing player
     distances = cdist(opponents_positions, player_positions)
 
-    # index of the closest opponent for each player
-    closest_opponent_indices = np.argmin(distances, axis=1)
-
-    # make the movement columns the xyz position of next_obs minus the xyz in observation
-    nxt_obs[6:11, 3:] = nxt_obs[6:11, :3] - obs[6:11, :3]
+    assigned_players = np.zeros(opponents_positions.shape[0], dtype=bool)
 
     # move the opponents somewhere close to the player in next_obs that they are closeest to
-    for opponent_index , player_index in enumerate(closest_opponent_indices):
-        offset = np.min(distances, axis = 1)[opponent_index]
-        nxt_obs[opponent_index, :3] = nxt_obs[player_index, :3] + offset
+    for opponent_index in range(len(opponents_positions)):
+        available_players = np.where(~assigned_players)[0]
+        closest_available_player_index = available_players[np.argmin(distances[opponent_index, available_players])]
+
+        # Mark player as assigned
+        assigned_players[closest_available_player_index] = True
+
+        if distances[opponent_index, closest_available_player_index] > 0.73:
+            # Calculate the direction vector
+            direction_vector = player_positions[closest_available_player_index, :3] - opponents_positions[opponent_index, :3]
+
+            # Normalize the direction vector
+            normalized_direction = direction_vector / np.linalg.norm(direction_vector)
+
+            # Calculate the offset as 0.5 in each dimension towards the player
+            offset = 0.5 * normalized_direction
+            nxt_opponents_positions[opponent_index, :3] = opponents_positions[opponent_index, :3] + offset
+            nxt_opponents_positions[opponent_index, 0] = np.clip(nxt_opponents_positions[opponent_index, 0], 0, 94)
+            nxt_opponents_positions[opponent_index, 1] = np.clip(nxt_opponents_positions[opponent_index, 1], 0, 50)
+        else:
+            # get offset
+            offset = np.random.uniform(low=[-0.4, -0.15, -0.000001], high=[-0.1, 0.15, 0.000001])
+            nxt_opponents_positions[opponent_index, :3] = nxt_player_positions[closest_available_player_index, :3] + offset
+            nxt_opponents_positions[opponent_index, 0] = np.clip(nxt_opponents_positions[opponent_index, 0], 0, 94)
+            nxt_opponents_positions[opponent_index, 1] = np.clip(nxt_opponents_positions[opponent_index, 1], 0, 50)
+
+    nxt_obs[6:11, :3] = nxt_opponents_positions
+    # make the movement columns the xyz position of next_obs minus the xyz in observation
+    nxt_obs[6:11, 3:] = nxt_obs[6:11, :3] - obs[6:11, :3]
+    # nxt_obs[6:11, 3:] = obs[6:11, 3:]
     return nxt_obs.flatten()
+# 94 x 50
+def normalize(x, dataset):
+    mins = dataset.mins
+    maxs = dataset.maxs
+    ## [ 0, 1 ]
+    nonzero_i = np.abs(maxs - mins) > 0
+    x[nonzero_i] = (x[nonzero_i] - mins[nonzero_i]) / (maxs[nonzero_i] - mins[nonzero_i])
+    ## [ -1, 1 ]
+    x = 2 * x - 1
+    return x
 
 
 SAMPLING_NUM = 5
 total_reward = np.array([0]*5)
 groundtruth_reward = 0
-path = f"./logs/guided_samples_{args.scale}"
+pathid = 'hue'
+path = f"./logs/guided_samples{pathid}_{args.scale}"
 folder_existed = True
 if not os.path.exists(path):
     os.makedirs(path)
@@ -141,7 +183,12 @@ for index in pbar:
     # print(observation.shape) (66,)
     # print(dataset.observations.shape) (68701, 1024, 66)
     # print(type(observation)) <class 'numpy.ndarray'>
-    # print(observation)
+    # print(type(dataset.observations))
+    # print(dataset.observations[index, 0])
+    # print(dataset.observations[index, 1])
+    # print(dataset.observations[index, 2])
+    # print(dataset.observations[index, 3])
+    
     groundtruth_reward += dataset.rewards[index]
     game_info = dataset.trajectory_game_record[index].split(".npy")[0]
     
@@ -153,45 +200,47 @@ for index in pbar:
     # sample the first 6 channels and get the first frame of the 1024
 
     ## format current observation for conditioning
-    conditions = {0: observation}
     samples = None
-    for i in range(1024):
-        action, temp_samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
-        obs = update_heuristics(observation, temp_samples.observations[i:i + 1])
-        if samples is None:
-        # first iteration, assign the selected temp_samples to the samples object
-            samples = Trajectories(
-                actions=temp_samples.actions[i:i + 1],
-                observations=obs,
-                values=temp_samples.values[i:i + 1]
-            )
-        else:
-            # Concatenate the new ith temp_samples with the existing samples
-            samples = Trajectories(
-                actions=torch.cat([samples.actions, temp_samples.actions[i:i + 1]], dim=0),
-                observations=torch.cat([samples.observations, obs], dim=0),
-                values=torch.cat([samples.values, temp_samples.values[i:i + 1]], dim=0)
-            )
-        #replace starting condition (idea 1)
-        conditions = {0: obs}
-        #add in condition (idea 2)
-        conditions[i] = obs
+    observations = np.zeros((5, 1024, 66))
+    actions = np.zeros((5, 1024, 0))
+    values = torch.zeros(5)
+    for n in range(SAMPLING_NUM):
+        obs = observation
+        conditions = {0: observation}
+        observations[n,0] = dataset.unnormalize(obs)
+        for i in range(1,1024):
+            action, temp_samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
+            obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,0])
+            observations[n,i] = obs
+            obs = normalize(obs, dataset)
+            # actions[n,i] = temp_samples.actions[0,1]
 
-    action, samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
+            #replace starting condition (idea 1)
+            conditions = {0: obs}
+            #add in condition (idea 2)
+            # conditions[i] = obs
+    samples = Trajectories(
+                actions=actions,
+                observations = observations,
+                values= values
+                )
+
+    # action, samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
     # print(samples.observations.shape) (5, 1024, 66) 
     # print(samples.values.shape) torch.Size([5])
     # print(samples.actions.shape) (5, 1024, 0)
-    print(samples.actions)
-    print(action)
+    # print(samples.actions)
+    # print(action)
     # print(samples)
-    total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
-    break
+    #uncomment below
+    # total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
+    
     # print("GUIDED")
     if not folder_existed:
         savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
         print(savepath)
         torch.save(samples.observations, savepath)
-        print(samples.values)
+        # print(samples.values)
 
     # print("NON-GUIDED")
     # savepath = os.path.join(f'{path}', f'{game_info}-{index}-nonguided-245K.npy')
@@ -202,13 +251,13 @@ for index in pbar:
     # reward_log.write(f"{game_info},{samples.values.cpu().detach().numpy()}")
     # reward_log.write("\n")
 
-    if index > 0 and index % 300 == 0:
-        print(f"[Step: {index}] [Reward: {total_reward}]")
+    # if index > 0 and index % 300 == 0:
+    #     print(f"[Step: {index}] [Reward: {total_reward}]")
 
-    pbar.set_description(f"[GT reward: {groundtruth_reward}] [Reward: {total_reward}]", refresh=True)
+    # pbar.set_description(f"[GT reward: {groundtruth_reward}] [Reward: {total_reward}]", refresh=True)
 
-print(f"Total reward: {total_reward}")
-print(f"[Mean: {total_reward.mean()}] [MAX: {total_reward.max()}] [Std: {total_reward.std()}]")
-print(f"Ground truth reward: {groundtruth_reward}")
+# print(f"Total reward: {total_reward}")
+# print(f"[Mean: {total_reward.mean()}] [MAX: {total_reward.max()}] [Std: {total_reward.std()}]")
+# print(f"Ground truth reward: {groundtruth_reward}")
 # print(SUBSET*COUNT, SUBSET*COUNT+SUBSET)
 
