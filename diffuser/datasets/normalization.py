@@ -94,6 +94,7 @@ class Normalizer:
 
     def __init__(self, X):
         self.X = X.astype(np.float32)
+        # self.X = self.X.reshape(-1,66)
         self.mins = X.min(axis=0)
         self.maxs = X.max(axis=0)
 
