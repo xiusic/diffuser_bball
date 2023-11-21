@@ -55,7 +55,7 @@ diffusion = diffusion_experiment.ema
 dataset = diffusion_experiment.dataset
 renderer = diffusion_experiment.renderer
 # print(dataset.mins.shape)
-# print(dataset.normalizer)
+# print(dataset.normalizer.mins.shape)
 # break
 # print(dataset.unnormalize(dataset.observations[0, 1]))
 # print(dir(dataset))
@@ -121,7 +121,7 @@ def update_heuristics(observation, next_obs):
         # Mark player as assigned
         assigned_players[closest_available_player_index] = True
 
-        if distances[opponent_index, closest_available_player_index] > 0.73:
+        if distances[opponent_index, closest_available_player_index] > 2:
             # Calculate the direction vector
             direction_vector = player_positions[closest_available_player_index, :3] - opponents_positions[opponent_index, :3]
 
@@ -135,7 +135,7 @@ def update_heuristics(observation, next_obs):
             nxt_opponents_positions[opponent_index, 1] = np.clip(nxt_opponents_positions[opponent_index, 1], 0, 50)
         else:
             # get offset
-            offset = np.random.uniform(low=[-0.4, -0.15, -0.000001], high=[-0.1, 0.15, 0.000001])
+            offset = np.random.uniform(low=[-2.3, -0.15, -0.000001], high=[-2.0, 0.15, 0.000001])
             nxt_opponents_positions[opponent_index, :3] = nxt_player_positions[closest_available_player_index, :3] + offset
             nxt_opponents_positions[opponent_index, 0] = np.clip(nxt_opponents_positions[opponent_index, 0], 0, 94)
             nxt_opponents_positions[opponent_index, 1] = np.clip(nxt_opponents_positions[opponent_index, 1], 0, 50)
@@ -157,7 +157,7 @@ def normalize(x, dataset):
     return x
 
 
-SAMPLING_NUM = 5
+SAMPLING_NUM = 1
 total_reward = np.array([0]*5)
 groundtruth_reward = 0
 pathid = 'hue'
@@ -204,13 +204,13 @@ for index in pbar:
     observations = np.zeros((5, 1024, 66))
     actions = np.zeros((5, 1024, 0))
     values = torch.zeros(5)
-    for n in range(SAMPLING_NUM):
+    for n in range(5):
         obs = observation
         conditions = {0: observation}
         observations[n,0] = dataset.unnormalize(obs)
         for i in range(1,1024):
             action, temp_samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
-            obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,0])
+            obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,1])
             observations[n,i] = obs
             obs = normalize(obs, dataset)
             # actions[n,i] = temp_samples.actions[0,1]
