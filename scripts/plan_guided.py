@@ -10,6 +10,7 @@ import diffuser.sampling as sampling
 import diffuser.utils as utils
 from diffuser.sampling.policies import Trajectories
 from scipy.spatial.distance import cdist
+import ipdb
 
 
 #-----------------------------------------------------------------------------#
@@ -155,12 +156,15 @@ def normalize(x, dataset):
     ## [ -1, 1 ]
     x = 2 * x - 1
     return x
+def make_timesteps(batch_size, i, device):
+    t = torch.full((batch_size,), i, device=device, dtype=torch.long)
+    return t
 
 
 SAMPLING_NUM = 1
 total_reward = np.array([0]*5)
 groundtruth_reward = 0
-pathid = 'hue'
+pathid = 'hue25'
 path = f"./logs/guided_samples{pathid}_{args.scale}"
 folder_existed = True
 if not os.path.exists(path):
@@ -204,21 +208,32 @@ for index in pbar:
     observations = np.zeros((5, 1024, 66))
     actions = np.zeros((5, 1024, 0))
     values = torch.zeros(5)
+    num_iterations = 1024 // 25
     for n in range(5):
         obs = observation
         conditions = {0: observation}
-        observations[n,0] = dataset.unnormalize(obs)
-        for i in range(1,1024):
+        # observations[n,0] = dataset.unnormalize(obs)
+        for i in range(num_iterations):
             action, temp_samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
-            obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,1])
-            observations[n,i] = obs
-            obs = normalize(obs, dataset)
+            if (i == (num_iterations - 1)):
+                for j in range(24):
+                    obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,j])
+                    observations[n,(25*i) + j] = obs
+                    obs = normalize(obs, dataset)           
+            else:
+                for j in range(25):
+                    obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,j])
+                    observations[n,(25*i) + j] = obs
+                    obs = normalize(obs, dataset)
             # actions[n,i] = temp_samples.actions[0,1]
 
             #replace starting condition (idea 1)
             conditions = {0: obs}
             #add in condition (idea 2)
             # conditions[i] = obs
+    t = make_timesteps(5, 0, policy.diffusion_model.betas.device)
+    # ipdb.set_trace()
+    values = policy.guide(torch.tensor(observations).float().to('cuda:0'), None, t)
     samples = Trajectories(
                 actions=actions,
                 observations = observations,
@@ -233,13 +248,15 @@ for index in pbar:
     # print(action)
     # print(samples)
     #uncomment below
-    # total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
+    total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
     
     # print("GUIDED")
     if not folder_existed:
         savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
         print(savepath)
         torch.save(samples.observations, savepath)
+        savepath = os.path.join(f'{path}', f'{game_info}-{index}-values_guided-245K.npy')
+        torch.save(samples.values.detach().cpu().numpy(), savepath)
         # print(samples.values)
 
     # print("NON-GUIDED")
@@ -251,13 +268,13 @@ for index in pbar:
     # reward_log.write(f"{game_info},{samples.values.cpu().detach().numpy()}")
     # reward_log.write("\n")
 
-    # if index > 0 and index % 300 == 0:
-    #     print(f"[Step: {index}] [Reward: {total_reward}]")
+    if index > 0 and index % 300 == 0:
+        print(f"[Step: {index}] [Reward: {total_reward}]")
 
-    # pbar.set_description(f"[GT reward: {groundtruth_reward}] [Reward: {total_reward}]", refresh=True)
+    pbar.set_description(f"[GT reward: {groundtruth_reward}] [Reward: {total_reward}]", refresh=True)
 
-# print(f"Total reward: {total_reward}")
-# print(f"[Mean: {total_reward.mean()}] [MAX: {total_reward.max()}] [Std: {total_reward.std()}]")
-# print(f"Ground truth reward: {groundtruth_reward}")
+print(f"Total reward: {total_reward}")
+print(f"[Mean: {total_reward.mean()}] [MAX: {total_reward.max()}] [Std: {total_reward.std()}]")
+print(f"Ground truth reward: {groundtruth_reward}")
 # print(SUBSET*COUNT, SUBSET*COUNT+SUBSET)
 

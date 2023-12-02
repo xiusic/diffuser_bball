@@ -140,7 +140,7 @@ class BBSequenceDataset(torch.utils.data.Dataset):
         '''
             x : [ -1, 1 ]
         '''
-        print(eps)
+        # print(eps)
         if x.max() > 1 + eps or x.min() < -1 - eps:
             # print(f'[ datasets/mujoco ] Warning: sample out of range | ({x.min():.4f}, {x.max():.4f})')
             x = np.clip(x, -1, 1)
@@ -275,7 +275,7 @@ class BBwdSequenceDataset(torch.utils.data.Dataset):
         '''
             x : [ -1, 1 ]
         '''
-        print(eps)
+        # print(eps)
         if x.max() > 1 + eps or x.min() < -1 - eps:
             # print(f'[ datasets/mujoco ] Warning: sample out of range | ({x.min():.4f}, {x.max():.4f})')
             x = np.clip(x, -1, 1)
@@ -415,7 +415,7 @@ class BBwDirStatSequenceDataset(torch.utils.data.Dataset):
         '''
             x : [ -1, 1 ]
         '''
-        print(eps)
+        # print(eps)
         if x.max() > 1 + eps or x.min() < -1 - eps:
             # print(f'[ datasets/mujoco ] Warning: sample out of range | ({x.min():.4f}, {x.max():.4f})')
             x = np.clip(x, -1, 1)

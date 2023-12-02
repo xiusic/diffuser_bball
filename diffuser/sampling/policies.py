@@ -2,6 +2,8 @@ from collections import namedtuple
 import torch
 import einops
 import pdb
+import numpy as np
+import ipdb
 
 import diffuser.utils as utils
 from diffuser.datasets.preprocessing import get_policy_preprocess_fn
@@ -31,6 +33,8 @@ class GuidedPolicy:
         ## run reverse diffusion process
         samples = self.diffusion_model(conditions, guide=self.guide, verbose=verbose, **self.sample_kwargs)
         trajectories = utils.to_np(samples.trajectories)
+        # print(trajectories.shape)
+        # print(np.dtype(trajectories))
         t = make_timesteps(batch_size, 0, samples.trajectories.device)
         values = self.guide(samples.trajectories, None, t)
 
