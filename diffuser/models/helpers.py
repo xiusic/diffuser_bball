@@ -121,12 +121,16 @@ class LinearAttention(nn.Module):
 #---------------------------------- sampling ---------------------------------#
 #-----------------------------------------------------------------------------#
 
-def extract(a, t, x_shape):
+def extract(a, t, x_shape, device=None):
     b, *_ = t.shape
-    out = a.gather(-1, t)
-    return out.reshape(b, *((1,) * (len(x_shape) - 1)))
+    if device != None:
+        out = a.gather(-1, t.to(device)) 
+        return out.reshape(b, *((1,) * (len(x_shape) - 1))).to(device) 
+    else:
+        out = a.gather(-1, t) 
+        return out.reshape(b, *((1,) * (len(x_shape) - 1)))
 
-def cosine_beta_schedule(timesteps, s=0.008, dtype=torch.float32):
+def cosine_beta_schedule(timesteps, s=0.008, dtype=torch.float32, device=None):
     """
     cosine schedule
     as proposed in https://openreview.net/forum?id=-NEXDKk8gZ
@@ -137,12 +141,22 @@ def cosine_beta_schedule(timesteps, s=0.008, dtype=torch.float32):
     alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
     betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
     betas_clipped = np.clip(betas, a_min=0, a_max=0.999)
-    return torch.tensor(betas_clipped, dtype=dtype)
+    # print('c', device)
+    if device != None:
+        return torch.tensor(betas_clipped, dtype=dtype, device=device)  
+    else:
+        return torch.tensor(betas_clipped, dtype=dtype)  
 
-def apply_conditioning(x, conditions, action_dim):
+def apply_conditioning(x, conditions, action_dim, device= None):
     for t, val in conditions.items():
-        x[:, t, action_dim:] = val.clone()
-    return x
+        if device != None:
+            x[:, t, action_dim:] = val.clone().to(device) 
+        else:
+            x[:, t, action_dim:] = val.clone()
+    if device != None:
+        return x.to(device) 
+    else:
+        return x
 
 
 #-----------------------------------------------------------------------------#

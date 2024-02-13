@@ -2,7 +2,7 @@ import numpy as np
 import io
 
 # Load data from the .npy file
-path = "/local2/dmreynos/diffuser_bball/logs/guided_sampleshue25_0.1/2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-0-guided-245K.npy"  # Replace with the path to your .npy file
+path = "/local2/dmreynos/diffuser_bball/logs/guided_sampleshuestoppedval100_0.1/2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-0-guided-245K.npy"  # Replace with the path to your .npy file
 data = np.load(path, allow_pickle=True)
 # print(data[0].shape)
 #print(data.files)
@@ -19,7 +19,7 @@ print(diffuser_output.shape)
 print(diffuser_output[0][100].reshape(11,6).astype(int))
 print(diffuser_output[0][101].reshape(11,6).astype(int))
 print(diffuser_output[0][102].reshape(11,6).astype(int))
-print(diffuser_output[0][1000].reshape(11,6).astype(int))
+print(diffuser_output[0][1001].reshape(11,6).astype(int))
 
 # flata = np.array([-5.2459216e+00, 1.8242519e+01, 9.1577983e-01, 1.3771057e-01,
 #                        6.9858551e-02, 2.7679443e-02, -5.0344090e+00, 2.2021240e+01,
