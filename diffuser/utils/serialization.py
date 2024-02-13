@@ -59,8 +59,8 @@ def load_diffusion(*loadpath, epoch='latest', device='cuda:0', seed=None):
     renderer = None
     # renderer = render_config()
     model = model_config()
-    diffusion = diffusion_config(model)
-    trainer = trainer_config(diffusion, dataset, renderer)
+    diffusion = diffusion_config(model, device = device)
+    trainer = trainer_config(diffusion, dataset, renderer, device = device)
 
     if epoch == 'latest':
         epoch = get_latest_epoch(loadpath)

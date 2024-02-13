@@ -45,18 +45,20 @@ class GaussianDiffusion(nn.Module):
     def __init__(self, model, horizon, observation_dim, action_dim, n_timesteps=1000,
         loss_type='l1', clip_denoised=False, predict_epsilon=True,
         action_weight=1.0, loss_discount=1.0, loss_weights=None,
+        device = 'cuda:0',
     ):
         super().__init__()
+        self.device = device
         self.horizon = horizon
         self.observation_dim = observation_dim
         self.action_dim = action_dim
         self.transition_dim = observation_dim + action_dim
         self.model = model
 
-        betas = cosine_beta_schedule(n_timesteps)
+        betas = cosine_beta_schedule(n_timesteps, device= self.device)
         alphas = 1. - betas
         alphas_cumprod = torch.cumprod(alphas, axis=0)
-        alphas_cumprod_prev = torch.cat([torch.ones(1), alphas_cumprod[:-1]])
+        alphas_cumprod_prev = torch.cat([torch.ones(1, device=self.device), alphas_cumprod[:-1]])
 
         self.n_timesteps = int(n_timesteps)
         self.clip_denoised = clip_denoised
@@ -79,12 +81,13 @@ class GaussianDiffusion(nn.Module):
 
         ## log calculation clipped because the posterior variance
         ## is 0 at the beginning of the diffusion chain
+        # print(self.device)
         self.register_buffer('posterior_log_variance_clipped',
             torch.log(torch.clamp(posterior_variance, min=1e-20)))
         self.register_buffer('posterior_mean_coef1',
-            betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod))
+            betas * (np.sqrt(alphas_cumprod_prev.cpu()) / (1. - alphas_cumprod).cpu()).to(self.device))
         self.register_buffer('posterior_mean_coef2',
-            (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod))
+            (1. - alphas_cumprod_prev) * (np.sqrt(alphas.cpu()) / (1. - alphas_cumprod).cpu()).to(self.device))
 
         ## get loss coefficients and initialize objective
         loss_weights = self.get_loss_weights(action_weight, loss_discount, loss_weights)
@@ -161,7 +164,7 @@ class GaussianDiffusion(nn.Module):
 
         batch_size = shape[0]
         x = torch.randn(shape, device=device)
-        x = apply_conditioning(x, cond, self.action_dim)
+        x = apply_conditioning(x, cond, self.action_dim, device)
 
         chain = [x] if return_chain else None
 
@@ -172,7 +175,7 @@ class GaussianDiffusion(nn.Module):
             # print('look')
             # print(x.shape) [5, 1024, 66]
             # print(cond)
-            x = apply_conditioning(x, cond, self.action_dim)
+            x = apply_conditioning(x, cond, self.action_dim, device)
             progress.update({'t': i, 'vmin': values.min().item(), 'vmax': values.max().item()})
             if return_chain: chain.append(x)
 
@@ -188,6 +191,7 @@ class GaussianDiffusion(nn.Module):
             conditions : [ (time, state), ... ]
         '''
         device = self.betas.device
+        # print('cs', device)
         batch_size = len(cond[0])
         horizon = horizon or self.horizon
         shape = (batch_size, horizon, self.transition_dim)
@@ -211,10 +215,10 @@ class GaussianDiffusion(nn.Module):
         noise = torch.randn_like(x_start)
 
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
-        x_noisy = apply_conditioning(x_noisy, cond, self.action_dim)
+        x_noisy = apply_conditioning(x_noisy, cond, self.action_dim, self.betas.device)
 
         x_recon = self.model(x_noisy, cond, t)
-        x_recon = apply_conditioning(x_recon, cond, self.action_dim)
+        x_recon = apply_conditioning(x_recon, cond, self.action_dim, self.betas.device)
 
         assert noise.shape == x_recon.shape
 
@@ -240,7 +244,7 @@ class ValueDiffusion(GaussianDiffusion):
         noise = torch.randn_like(x_start)
 
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
-        x_noisy = apply_conditioning(x_noisy, cond, self.action_dim)
+        x_noisy = apply_conditioning(x_noisy, cond, self.action_dim, self.betas.device)
 
         pred = self.model(x_noisy, cond, t)
 
