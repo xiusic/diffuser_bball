@@ -51,6 +51,8 @@ class Parser(Tap):
         ## if not loading from a config script, skip the result of the setup
         if not hasattr(args, 'config'): return args
         args = self.read_config(args, experiment)
+        # print(args.savepath)
+        # exit()
         self.add_extras(args)
         self.eval_fstrings(args)
         self.set_seed(args)
@@ -97,6 +99,9 @@ class Parser(Tap):
         for i in range(0, len(extras), 2):
             key = extras[i].replace('--', '')
             val = extras[i+1]
+            if (key == "savepath") and not (hasattr(args, 'savepath')):
+                setattr(args, key, val)
+                continue
             assert hasattr(args, key), f'[ utils/setup ] {key} not found in config: {args.config}'
             old_val = getattr(args, key)
             old_type = type(old_val)
@@ -147,7 +152,11 @@ class Parser(Tap):
 
     def mkdir(self, args):
         if 'logbase' in dir(args) and 'dataset' in dir(args) and 'exp_name' in dir(args):
-            args.savepath = os.path.join("/local2/dmreynos/diffuser_bball/logs/", args.dataset, args.exp_name)
+            # if args.savepath
+            if (hasattr(args, "savepath")):
+                args.savepath = os.path.join("/local2/dmreynos/diffuser_bball/logs/", f"{args.dataset}_{args.savepath}", args.exp_name)
+            else:
+                args.savepath = os.path.join("/local2/dmreynos/diffuser_bball/logs/", args.dataset, args.exp_name)
             self._dict['savepath'] = args.savepath
             if 'suffix' in dir(args):
                 args.savepath = os.path.join(args.savepath, args.suffix)

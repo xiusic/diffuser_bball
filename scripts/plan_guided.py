@@ -41,11 +41,16 @@ set_seed(42)
 
 ## load diffusion model and value function from disk
 diffusion_experiment = utils.load_diffusion(
-    args.loadbase, args.dataset, args.diffusion_loadpath, device = args.device,
+    args.loadbase, args.dataset,
+    # args.diffusion_loadpath,
+    f'diffusion/defaults_H{args.horizon}_T{30}', 
+    #device = args.device,
     epoch=args.diffusion_epoch, seed=args.seed,
 )
 value_experiment = utils.load_diffusion(
-    args.loadbase, args.dataset, args.value_loadpath, device = args.device,
+    "/local2/yao/diffuser/logs/" #args.loadbase
+    ,"basketball_single_game_wd_TS1000000" #args.dataset
+    , f'values/defaults_H{args.horizon}_T{args.n_diffusion_steps}_d{args.discount}', #device = args.device,
     epoch=args.value_epoch, seed=args.seed,
 )
 
@@ -64,7 +69,8 @@ renderer = diffusion_experiment.renderer
 
 ## initialize value guide
 value_function = value_experiment.ema
-guide_config = utils.Config(args.guide, device = args.device, model=value_function, verbose=False)
+guide_config = utils.Config(args.guide, #device = args.device,
+                             model=value_function, verbose=False)
 guide = guide_config()
 
 logger_config = utils.Config(
@@ -80,7 +86,6 @@ policy_config = utils.Config(
     args.policy,
     guide=guide,
     scale=args.scale,
-    instance = False,
     diffusion_model=diffusion,
     normalizer=dataset.normalizer,
     preprocess_fns=args.preprocess_fns,
@@ -99,7 +104,7 @@ policy = policy_config()
 #-----------------------------------------------------------------------------#
 #--------------------------------- main loop ---------------------------------#
 #-----------------------------------------------------------------------------#
-def update_heuristics(observation, next_obs):
+def update_heuristics(observation, next_obs, first = False):
     obs = observation.reshape(11, 6)
     nxt_obs = next_obs.reshape(11, 6)
     # player_observation = obs[2:6, :]  
@@ -123,7 +128,10 @@ def update_heuristics(observation, next_obs):
         # Mark player as assigned
         assigned_players[closest_available_player_index] = True
 
-        if distances[opponent_index, closest_available_player_index] > 2.5:
+        #original 2.3
+        #loose 3.4
+        #stagnent 100000000
+        if distances[opponent_index, closest_available_player_index] > 2.3:
             # Calculate the direction vector
             direction_vector = player_positions[closest_available_player_index, :3] - opponents_positions[opponent_index, :3]
 
@@ -137,7 +145,7 @@ def update_heuristics(observation, next_obs):
             nxt_opponents_positions[opponent_index, 1] = np.clip(nxt_opponents_positions[opponent_index, 1], 0, 50)
         else:
             # nxt_opponents_positions[opponent_index, :3] = opponents_positions[opponent_index, :3]
-        #     # get offset
+        #     # get offset for original below
             offset = np.random.uniform(low=[2.3, -0.15, 0], high=[2.6, 0.15,0])
             nxt_opponents_positions[opponent_index, :3] = nxt_player_positions[closest_available_player_index, :3] + offset
             nxt_opponents_positions[opponent_index, 0] = np.clip(nxt_opponents_positions[opponent_index, 0], 0, 94)
@@ -255,18 +263,19 @@ def make_timesteps(batch_size, i, device):
 SAMPLING_NUM = 1
 total_reward = np.array([0]*5)
 groundtruth_reward = 0
-first_num_of_observations = 75
+first_num_of_observations = 100
 # first_num_of_observations  = int(input("Enter an integer: "))
-pathid = 'hue_original' + str(first_num_of_observations)
+pathid = 'act25_original_50' + str(first_num_of_observations)
 path = f"./logs/guided_samples{pathid}_{args.scale}"
-folder_existed = True
+use_hue = True
+folder_existed = False # used to set this to True for debugging
 if not os.path.exists(path):
     os.makedirs(path)
     print(f"Directory {path} created.")
     folder_existed = False
 else:
     print(f"Directory {path} already exists.")
-    folder_existed = True
+    # folder_existed = True
 # SUBSET = 5000
 # COUNT = 9
 # reward_log = open(f"{path}/reward_{SUBSET*COUNT}_{SUBSET*COUNT+SUBSET}.log", "w")
@@ -289,88 +298,93 @@ for index in pbar:
     groundtruth_reward += dataset.rewards[index]
     game_info = dataset.trajectory_game_record[index].split(".npy")[0]
     
+
     if not folder_existed:
         savepath = os.path.join(f'{path}', f'{game_info}-{index}-groundtruth.npy')
-        torch.save(dataset.observations[index, :], savepath)
+        if not os.path.exists(savepath):
+            torch.save(dataset.observations[index, :], savepath)
     # 1/0
+    savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
+    if use_hue:
+        if not os.path.exists(savepath):
+        # sample the first 6 channels and get the first frame of the 1024
 
-    # sample the first 6 channels and get the first frame of the 1024
-
-    ## format current observation for conditioning
-    samples = None
-    observations = np.zeros((5, 1024, 66))
-    actions = np.zeros((5, 1024, 0))
-    values = torch.zeros(5)
-    num_iterations = int(np.ceil(1024 // first_num_of_observations))
-    for n in range(5):
-        obs = observation
-        conditions = {0: observation}
-        print(policy.diffusion_model.betas.device)
-        exit()
-        # observations[n,0] = dataset.unnormalize(obs)
-        for i in range(num_iterations):
-            action, temp_samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
-            if (i == (num_iterations - 1)):
-                for j in range(1024 - (first_num_of_observations * (num_iterations - 1))):
-                    obs = update_heuristics2_3(dataset.unnormalize(obs), temp_samples.observations[0,j])
-                    observations[n,(first_num_of_observations*i) + j] = obs
-                    obs = normalize(obs, dataset)           
-            else:
-                for j in range(first_num_of_observations):
-                    if (i == 0) and (j == 0):
-                        obs = update_heuristics2_3(dataset.unnormalize(obs), temp_samples.observations[0,j], True)
+            ## format current observation for conditioning
+            samples = None
+            observations = np.zeros((5, 1024, 66))
+            actions = np.zeros((5, 1024, 0))
+            values = torch.zeros(5)
+            num_iterations = int(np.ceil(1024 // first_num_of_observations))
+            for n in range(5):
+                obs = observation
+                conditions = {0: observation}
+                # observations[n,0] = dataset.unnormalize(obs)
+                for i in range(num_iterations):
+                    action, temp_samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
+                    if (i == (num_iterations - 1)):
+                        for j in range(1024 - (first_num_of_observations * (num_iterations - 1))):
+                            obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,j])
+                            observations[n,(first_num_of_observations*i) + j] = obs
+                            obs = normalize(obs, dataset)           
                     else:
-                        obs = update_heuristics2_3(dataset.unnormalize(obs), temp_samples.observations[0,j])
-                    observations[n,(first_num_of_observations*i) + j] = obs
-                    obs = normalize(obs, dataset)
-            # actions[n,i] = temp_samples.actions[0,1]
+                        for j in range(first_num_of_observations):
+                            if (i == 0) and (j == 0):
+                                obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,j], True)
+                            else:
+                                obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,j])
+                            observations[n,(first_num_of_observations*i) + j] = obs
+                            obs = normalize(obs, dataset)
+                    # actions[n,i] = temp_samples.actions[0,1]
 
-            #replace starting condition (idea 1)
-            conditions = {0: obs}
-            #add in condition (idea 2)
-            # conditions[i] = obs
-    t = make_timesteps(5, 0, policy.diffusion_model.betas.device)
-    # ipdb.set_trace()
-    # values = policy.guide(torch.tensor(observations).float().to('cuda:0'), None, t)
-    values = policy.guide(torch.tensor(np.apply_along_axis(lambda obs: normalize(obs, dataset), 2, observations.copy())).float().to(args.device), None, t)
-    samples = Trajectories(
-                actions=actions,
-                observations = observations,
-                values= values
-                )
-
-    # action, samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
-    # print(samples.observations.shape) (5, 1024, 66) 
-    # print(samples.values.shape) torch.Size([5])
-    # print(samples.actions.shape) (5, 1024, 0)
-    # print(samples.actions)
-    # print(action)
-    # print(samples)
-    #uncomment below
-    total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
-    
-    # print("GUIDED")
+                    #replace starting condition (idea 1)
+                    conditions = {0: obs}
+                    #add in condition (idea 2)
+                    # conditions[i] = obs
+            t = make_timesteps(5, 0, policy.diffusion_model.betas.device)
+            # ipdb.set_trace()
+            # values = policy.guide(torch.tensor(observations).float().to('cuda:0'), None, t)
+            values = policy.guide(torch.tensor(np.apply_along_axis(lambda obs: normalize(obs, dataset), 2, observations.copy())).float().to(args.device), None, t)
+            samples = Trajectories(
+                        actions=actions,
+                        observations = observations,
+                        values= values
+                        )
+    else:
+        if not os.path.exists(savepath):
+            conditions = {0: observation}
+            action, samples = policy(conditions, batch_size=5, verbose=args.verbose)
+            # print(samples.observations.shape) (5, 1024, 66) 
+            # print(samples.values.shape) torch.Size([5])
+            # print(samples.actions.shape) (5, 1024, 0)
+            # print(samples.actions)
+            # print(action)
+            # print(samples)
+            #uncomment below
+            total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
+        
+        # print("GUIDED")
     if not folder_existed:
-        savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
-        print(savepath)
-        torch.save(samples.observations, savepath)
-        # savepath = os.path.join(f'{path}', f'{game_info}-{index}-values_guided-245K.npy')
-        # torch.save(samples.values.detach().cpu().numpy(), savepath)
-        # print(samples.values)
+        if not os.path.exists(savepath):
+            savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
+            # print(savepath)
+            torch.save(samples.observations, savepath)
+            # savepath = os.path.join(f'{path}', f'{game_info}-{index}-values_guided-245K.npy')
+            # torch.save(samples.values.detach().cpu().numpy(), savepath)
+            # print(samples.values)
 
-    # print("NON-GUIDED")
-    # savepath = os.path.join(f'{path}', f'{game_info}-{index}-nonguided-245K.npy')
-    # print(savepath)
-    # torch.save(non_guided_samples.observations, savepath)
-    # print(non_guided_samples.values)
-    # 1/0
-    # reward_log.write(f"{game_info},{samples.values.cpu().detach().numpy()}")
-    # reward_log.write("\n")
+        # print("NON-GUIDED")
+        # savepath = os.path.join(f'{path}', f'{game_info}-{index}-nonguided-245K.npy')
+        # print(savepath)
+        # torch.save(non_guided_samples.observations, savepath)
+        # print(non_guided_samples.values)
+        # 1/0
+        # reward_log.write(f"{game_info},{samples.values.cpu().detach().numpy()}")
+        # reward_log.write("\n")
 
-    if index > 0 and index % 300 == 0:
-        print(f"[Step: {index}] [Reward: {total_reward}]")
+        if index > 0 and index % 300 == 0:
+            print(f"[Step: {index}] [Reward: {total_reward}]")
 
-    pbar.set_description(f"[GT reward: {groundtruth_reward}] [Reward: {total_reward}]", refresh=True)
+        pbar.set_description(f"[GT reward: {groundtruth_reward}] [Reward: {total_reward}]", refresh=True)
 
 print(f"Total reward: {total_reward}")
 print(f"[Mean: {total_reward.mean()}] [MAX: {total_reward.max()}] [Std: {total_reward.std()}]")

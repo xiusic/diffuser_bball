@@ -222,7 +222,7 @@ basketball_single_game_wd = {
         'model': 'models.TemporalUnet',
         'diffusion': 'models.GaussianDiffusion',
         'horizon': 1024,
-        'n_diffusion_steps': 100,
+        'n_diffusion_steps': 20,
         'action_weight': 10,
         'loss_weights': None,
         'loss_discount': 1,
@@ -273,12 +273,12 @@ basketball_single_game_wd_TS1000000 = {
         'model': 'models.TemporalUnet',
         'diffusion': 'models.GaussianDiffusion',
         'horizon': 1024,
-        'n_diffusion_steps': 20,
-        'action_weight': 10,
+        'n_diffusion_steps': 20, #
+        'action_weight': 10, # 
         'loss_weights': None,
         'loss_discount': 1,
         'predict_epsilon': False,
-        'dim_mults': (1, 2, 4, 8),
+        'dim_mults': (1, 2, 4, 8), # after the 4, table of all param
         'attention': True,
         # 'renderer': 'utils.MuJoCoRenderer',
 
@@ -295,9 +295,9 @@ basketball_single_game_wd_TS1000000 = {
         'loss_type': 'l2',
         'n_train_steps': 1e6,
         'batch_size': 1024,
-        'learning_rate': 2e-4,
+        'learning_rate': 2e-4, #
         'gradient_accumulate_every': 2,
-        'ema_decay': 0.995,
+        'ema_decay': 0.995, #
         'save_freq': 1000,
         'sample_freq': 20000,
         'n_saves': 5,

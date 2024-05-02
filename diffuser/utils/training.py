@@ -65,10 +65,8 @@ class Trainer(object):
     ):
         super().__init__()
         self.model = diffusion_model
-        # print('dm', diffusion_model.device)
         self.ema = EMA(ema_decay)
         self.ema_model = copy.deepcopy(self.model)
-        # print(self.ema_model.device)
         self.update_ema_every = update_ema_every
         self.device = device
 

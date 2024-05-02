@@ -48,17 +48,16 @@ class GaussianDiffusion(nn.Module):
         device = 'cuda:0',
     ):
         super().__init__()
-        self.device = device
         self.horizon = horizon
         self.observation_dim = observation_dim
         self.action_dim = action_dim
         self.transition_dim = observation_dim + action_dim
         self.model = model
 
-        betas = cosine_beta_schedule(n_timesteps, device= self.device)
+        betas = cosine_beta_schedule(n_timesteps)
         alphas = 1. - betas
         alphas_cumprod = torch.cumprod(alphas, axis=0)
-        alphas_cumprod_prev = torch.cat([torch.ones(1, device=self.device), alphas_cumprod[:-1]])
+        alphas_cumprod_prev = torch.cat([torch.ones(1), alphas_cumprod[:-1]])
 
         self.n_timesteps = int(n_timesteps)
         self.clip_denoised = clip_denoised
@@ -81,13 +80,12 @@ class GaussianDiffusion(nn.Module):
 
         ## log calculation clipped because the posterior variance
         ## is 0 at the beginning of the diffusion chain
-        # print(self.device)
         self.register_buffer('posterior_log_variance_clipped',
             torch.log(torch.clamp(posterior_variance, min=1e-20)))
         self.register_buffer('posterior_mean_coef1',
-            betas * (np.sqrt(alphas_cumprod_prev.cpu()) / (1. - alphas_cumprod).cpu()).to(self.device))
+            betas * np.sqrt(alphas_cumprod_prev) / (1. - alphas_cumprod))
         self.register_buffer('posterior_mean_coef2',
-            (1. - alphas_cumprod_prev) * (np.sqrt(alphas.cpu()) / (1. - alphas_cumprod).cpu()).to(self.device))
+            (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod))
 
         ## get loss coefficients and initialize objective
         loss_weights = self.get_loss_weights(action_weight, loss_discount, loss_weights)
