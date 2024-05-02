@@ -12,7 +12,6 @@ class Parser(utils.Parser):
     config: str = 'config.locomotion'
 
 args = Parser().parse_args('diffusion')
-
 args.horizon = 1024
 args.batch_size = 1300
 # args.learning_rate = 2e-5
@@ -137,4 +136,11 @@ n_epochs = int(args.n_train_steps // args.n_steps_per_epoch)
 for i in range(n_epochs):
     print(f'Epoch {i} / {n_epochs} | {args.savepath}')
     trainer.train(n_train_steps=args.n_steps_per_epoch)
+    trainer.save(f'epoch_{i}')
 
+# 'action_weight' 10
+# 'learning_rate' 2e-4,
+# 'gradient_accumulate_every' 2
+# 'ema_decay' 0.995,
+# 'loss_discount' 1
+    
