@@ -1,7 +1,11 @@
 code for the working paper "Planning with Diffusion for Professional Basketball Player Behavior Synthesis."
 
 
-Hueristic problem - to only do this for one team, we need to generate trajectories for all teams, then in post update the defending teams position to be that of hueristics, we do this in several different number of batches
+Hueristic problem - We want to prove that the generated trajectories can be used in a real case, rather than just generating a 'realistic game'. In this, it is important to see trajectories generated against a team, rather than generating the trajectories for both teams all at once. We want valid, realistic, and adaptable trajectories in however an opposing team decides to move especially when not predicted by this model.
+
+
+
+To only do this for one team, we need to generate trajectories for all teams, then in post update the defending teams position to be that of hueristics, we do this in several different number of batches. The history is then also updated to be that of the hueristics and future frames are made based off the hueristics. The reason we tried different number of batches was to mimic the reaction times a player could actually have on the court to further explore how realistic the trajectories are.
 
 
 Types of hueristics:
