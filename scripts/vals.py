@@ -54,7 +54,7 @@ set_seed(42)
 diffusion_experiment = utils.load_diffusion(
     args.loadbase, args.dataset,
     # args.diffusion_loadpath,
-    f'diffusion/defaults_H{args.horizon}_T{20}', 
+    f'diffusion/defaults_H{args.horizon}_T{100}', 
     #device = args.device,
     epoch=args.diffusion_epoch, seed=args.seed,
 )
@@ -130,7 +130,7 @@ def normalize(x, dataset):
 #     "guided_samplesact25_original_50100_0.1",
 #     "guided_samplesact25_(2_3)_50100_0.1",
 #     "guided_samplesact25_50_0.1"]
-replace = "guided_samplesog_50_0.1"
+replace = "guided_samplesact_original_50100_0.1"
 
 # CUDA_VISIBLE_DEVICES=5 python ./scripts/vals.py --dataset basketball_single_game_wd_act25 --logbase /local2/dmreynos/diffuser_bball/logs/ --diffusion_epoch epoch_50
 
@@ -139,7 +139,8 @@ path = f"/local2/dmreynos/diffuser_bball/logs/{replace}"  # Replace with the pat
 # get gifs and values for organized hue 
 # /2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-0-guided-245K.npy"
 # Load data from the .npy file
-with open(f"rewards_{replace}.log", "w") as f:
+pos = 19
+with open(f"rewards_{replace}_obs_{pos}.log", "w") as f:
     # Redirect stdout to the log file
     sys.stdout = f
     all_files = os.listdir(path)
@@ -147,6 +148,8 @@ with open(f"rewards_{replace}.log", "w") as f:
     values_list = []
     filtered_files = [file for file in all_files if file.endswith('.npy') and 'groundtruth' not in file.lower()]
     for file_name in filtered_files:
+        if file_name != f"2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-{pos}-guided-245K.npy":
+            continue  # Skip this specific file
         file_path = os.path.join(path, file_name)
         data = np.load(file_path, allow_pickle=True)
         # print(data[0].shape)
