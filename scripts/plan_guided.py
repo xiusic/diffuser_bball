@@ -60,12 +60,6 @@ value_experiment = utils.load_diffusion(
 diffusion = diffusion_experiment.ema
 dataset = diffusion_experiment.dataset
 renderer = diffusion_experiment.renderer
-# print(dataset.mins.shape)
-# print(dataset.normalizer.mins.shape)
-# break
-# print(dataset.unnormalize(dataset.observations[0, 1]))
-# print(dir(dataset))
-# exit()
 
 ## initialize value guide
 value_function = value_experiment.ema
@@ -107,8 +101,6 @@ policy = policy_config()
 def update_heuristics(observation, next_obs, first = False):
     obs = observation.reshape(11, 6)
     nxt_obs = next_obs.reshape(11, 6)
-    # player_observation = obs[2:6, :]  
-    # opponents_observation = obs[6:11, :] 
 
     player_positions = obs[1:6, :3]  
     opponents_positions = obs[6:11, :3] 
@@ -144,14 +136,14 @@ def update_heuristics(observation, next_obs, first = False):
             nxt_opponents_positions[opponent_index, 0] = np.clip(nxt_opponents_positions[opponent_index, 0], 0, 94)
             nxt_opponents_positions[opponent_index, 1] = np.clip(nxt_opponents_positions[opponent_index, 1], 0, 50)
         else:
+            # use the below if not doing original
             # nxt_opponents_positions[opponent_index, :3] = opponents_positions[opponent_index, :3]
-        #     # get offset for original below
+            # get offset for original below
             offset = np.random.uniform(low=[2.3, -0.15, 0], high=[2.6, 0.15,0])
             nxt_opponents_positions[opponent_index, :3] = nxt_player_positions[closest_available_player_index, :3] + offset
             nxt_opponents_positions[opponent_index, 0] = np.clip(nxt_opponents_positions[opponent_index, 0], 0, 94)
             nxt_opponents_positions[opponent_index, 1] = np.clip(nxt_opponents_positions[opponent_index, 1], 0, 50)
-        # check value function on the original way
-        # think about a way to validate the trajectories more
+
 
     nxt_obs[6:11, :3] = nxt_opponents_positions
     # make the movement columns the xyz position of next_obs minus the xyz in observation
@@ -163,8 +155,7 @@ def update_heuristics(observation, next_obs, first = False):
 def update_heuristics2_3(observation, next_obs, first = False):
     obs = observation.reshape(11, 6)
     nxt_obs = next_obs.reshape(11, 6)
-    # player_observation = obs[2:6, :]  
-    # opponents_observation = obs[6:11, :] 
+
 
     player_positions = obs[1:6, :3]  
     opponents_positions = obs[6:11, :3] 
@@ -229,32 +220,45 @@ def update_heuristics2_3(observation, next_obs, first = False):
                 nxt_opponents_positions[opponent_index, 1] = np.clip(nxt_opponents_positions[opponent_index, 1], zone_boundaries[opponent_index][0], zone_boundaries[opponent_index][1])
             else:
                 nxt_opponents_positions[opponent_index, :3] = opponents_positions[opponent_index, :3]
-            #     # get offset
-                # offset = np.random.uniform(low=[-2.6, -0.15, 0], high=[-2.3, 0.15,0])
-                # nxt_opponents_positions[opponent_index, :3] = nxt_player_positions[closest_available_player_index, :3] + offset
-                # nxt_opponents_positions[opponent_index, 0] = np.clip(nxt_opponents_positions[opponent_index, 0], 0, 94)
-                # nxt_opponents_positions[opponent_index, 1] = np.clip(nxt_opponents_positions[opponent_index, 1], 0, 50)
-            # check value function on the original way
-            # think about a way to validate the trajectories more
+
         else:
             nxt_opponents_positions[opponent_index, :3] = opponents_positions[opponent_index, :3]
 
     nxt_obs[6:11, :3] = nxt_opponents_positions
     # make the movement columns the xyz position of next_obs minus the xyz in observation
     nxt_obs[6:11, 3:] = nxt_obs[6:11, :3] - obs[6:11, :3]
-    # nxt_obs[6:11, 3:] = obs[6:11, 3:]
+    
     return nxt_obs.flatten()
 
 # 94 x 50
-def normalize(x, dataset):
-    mins = dataset.mins
-    maxs = dataset.maxs
+def normalize(x, dataset,index):
+    mins = dataset.normalizer.mins[index]
+    maxs = dataset.normalizer.maxs[index]
     ## [ 0, 1 ]
     nonzero_i = np.abs(maxs - mins) > 0
     x[nonzero_i] = (x[nonzero_i] - mins[nonzero_i]) / (maxs[nonzero_i] - mins[nonzero_i])
+    # ## [ -1, 1 ]
+    # x = 2 * x - 1
+    # return x
+    # x = (x - mins) / (maxs - mins)
     ## [ -1, 1 ]
     x = 2 * x - 1
     return x
+
+def unnormalize(x,dataset,index, eps=1e-4):
+    '''
+        x : [ -1, 1 ]
+    '''
+    mins = dataset.normalizer.mins[index]
+    maxs = dataset.normalizer.maxs[index]
+    if x.max() > 1 + eps or x.min() < -1 - eps:
+        # print(f'[ datasets/mujoco ] Warning: sample out of range | ({x.min():.4f}, {x.max():.4f})')
+        x = np.clip(x, -1, 1)
+
+    ## [ -1, 1 ] --> [ 0, 1 ]
+    x = (x + 1) / 2.
+
+    return x * (maxs - mins) + mins
 def make_timesteps(batch_size, i, device):
     t = torch.full((batch_size,), i, device=device, dtype=torch.long)
     return t
@@ -264,8 +268,7 @@ SAMPLING_NUM = 1
 total_reward = np.array([0]*5)
 groundtruth_reward = 0
 first_num_of_observations = 100
-# first_num_of_observations  = int(input("Enter an integer: "))
-pathid = 'act25_original_50' + str(first_num_of_observations)
+pathid = 'new_test2_cond' + str(first_num_of_observations)
 path = f"./logs/guided_samples{pathid}_{args.scale}"
 use_hue = True
 folder_existed = False # used to set this to True for debugging
@@ -283,18 +286,7 @@ pbar = tqdm(range(len(dataset)), desc="Planning: ")
 for index in pbar:
     print(f"posession #{index}")
     observation = dataset.observations[index, 0]
-    # print(dataset.observations)
 
-    # print(dataset.observations[5])
-    # print(observation.shape) (66,)
-    # print(dataset.observations.shape) (68701, 1024, 66)
-    # print(type(observation)) <class 'numpy.ndarray'>
-    # print(type(dataset.observations))
-    # print(dataset.observations[index, 0])
-    # print(dataset.observations[index, 1])
-    # print(dataset.observations[index, 2])
-    # print(dataset.observations[index, 3])
-    
     groundtruth_reward += dataset.rewards[index]
     game_info = dataset.trajectory_game_record[index].split(".npy")[0]
     
@@ -314,36 +306,50 @@ for index in pbar:
             observations = np.zeros((5, 1024, 66))
             actions = np.zeros((5, 1024, 0))
             values = torch.zeros(5)
+            additional_conditions = {}
             num_iterations = int(np.ceil(1024 // first_num_of_observations))
             for n in range(5):
                 obs = observation
                 conditions = {0: observation}
                 # observations[n,0] = dataset.unnormalize(obs)
+                # for the below loop, the 'update hueristic function can switch from 2_3 to not by changes the name of the function manually
                 for i in range(num_iterations):
                     action, temp_samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
                     if (i == (num_iterations - 1)):
                         for j in range(1024 - (first_num_of_observations * (num_iterations - 1))):
-                            obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,j])
+                            obs = update_heuristics2_3(unnormalize(obs, dataset, j + len(conditions) - 1), temp_samples.observations[0,j + len(conditions) - 1])
                             observations[n,(first_num_of_observations*i) + j] = obs
-                            obs = normalize(obs, dataset)           
+                            obs = normalize(obs, dataset,j + len(conditions) - 1)
+                            # store conditions to keep to use in the next iteration
+                            additional_conditions[(i*first_num_of_observations)+j+1] = obs        
                     else:
                         for j in range(first_num_of_observations):
                             if (i == 0) and (j == 0):
-                                obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,j], True)
+                                obs = update_heuristics2_3(unnormalize(obs, dataset, j + len(conditions) - 1), temp_samples.observations[0,j + len(conditions) - 1], True)
                             else:
-                                obs = update_heuristics(dataset.unnormalize(obs), temp_samples.observations[0,j])
+                                obs = update_heuristics2_3(unnormalize(obs, dataset, j + len(conditions) - 1), temp_samples.observations[0,j + len(conditions) - 1])
                             observations[n,(first_num_of_observations*i) + j] = obs
-                            obs = normalize(obs, dataset)
+                            obs = normalize(obs, dataset,j + len(conditions) - 1)
+                            additional_conditions[(i*first_num_of_observations)+j + 1] = obs
                     # actions[n,i] = temp_samples.actions[0,1]
 
-                    #replace starting condition (idea 1)
-                    conditions = {0: obs}
+                    #replace starting conditions (idea 1)
+                    # conditions = {0: obs}
+                    conditions.update(additional_conditions)
+                    additional_conditions.clear()
                     #add in condition (idea 2)
-                    # conditions[i] = obs
+                    # conditions[i+1] = obs
+                #     print(len(conditions))
+                #     if (len(conditions) > 400):
+                #         break
+                # break
+            # action, samples = policy(conditions, batch_size=5, verbose=args.verbose)
             t = make_timesteps(5, 0, policy.diffusion_model.betas.device)
             # ipdb.set_trace()
             # values = policy.guide(torch.tensor(observations).float().to('cuda:0'), None, t)
-            values = policy.guide(torch.tensor(np.apply_along_axis(lambda obs: normalize(obs, dataset), 2, observations.copy())).float().to(args.device), None, t)
+            # values = policy.guide(torch.tensor(np.apply_along_axis(lambda obs: normalize(obs, dataset), 2, observations.copy())).float().to(args.device), None, t)
+            values = policy.guide(policy.normalizer.unnormalize(torch.tensor(observations)).float().to(args.device), None, t)
+
             samples = Trajectories(
                         actions=actions,
                         observations = observations,
@@ -353,12 +359,7 @@ for index in pbar:
         if not os.path.exists(savepath):
             conditions = {0: observation}
             action, samples = policy(conditions, batch_size=5, verbose=args.verbose)
-            # print(samples.observations.shape) (5, 1024, 66) 
-            # print(samples.values.shape) torch.Size([5])
-            # print(samples.actions.shape) (5, 1024, 0)
-            # print(samples.actions)
-            # print(action)
-            # print(samples)
+
             #uncomment below
             total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
         

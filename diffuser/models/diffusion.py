@@ -189,6 +189,7 @@ class GaussianDiffusion(nn.Module):
             conditions : [ (time, state), ... ]
         '''
         device = self.betas.device
+        # batch_size, num_conditions, condition_dim = cond.shape
         # print('cs', device)
         batch_size = len(cond[0])
         horizon = horizon or self.horizon

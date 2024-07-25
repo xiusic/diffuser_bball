@@ -2,7 +2,7 @@ import numpy as np
 import io
 
 # Load data from the .npy file
-path = "/local2/dmreynos/diffuser_bball/logs/guided_sampleshuestoppedval100_0.1/2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-0-guided-245K.npy"  # Replace with the path to your .npy file
+path = "logs/guided_samplesnew_test2_cond100_0.1/2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-1-guided-245K.npy"  # Replace with the path to your .npy file
 data = np.load(path, allow_pickle=True)
 # print(data[0].shape)
 #print(data.files)
