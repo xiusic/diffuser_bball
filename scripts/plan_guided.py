@@ -241,7 +241,7 @@ def update_heuristics(observation, next_obs, first=False):
     return nxt_obs.flatten()
 
 
-def update_heuristics_2_3(observation, next_obs, first=False):
+def update_heuristics2_3(observation, next_obs, first=False):
     """
     Update the positions of opponents using a 2-3 zone defense strategy.
 
@@ -334,39 +334,52 @@ def update_heuristics_2_3(observation, next_obs, first=False):
 #------------------------- Main Sampling and Logging ------------------------#
 #-----------------------------------------------------------------------------#
 
-
+# Constants
 SAMPLING_NUM = 1
 total_reward = np.array([0]*5)
 groundtruth_reward = 0
+
+### This is the number you want to batch by, if using Hueristics
 first_num_of_observations = 100
+
 pathid = 'new_test2_cond' + str(first_num_of_observations)
 path = f"./logs/guided_samples{pathid}_{args.scale}"
+
+### Set to True If you are using hueristics
 use_hue = True
-folder_existed = False # used to set this to True for debugging
+
+folder_existed = False # used to set this to True for debugging (No saving results)
+
+# Create directory if it doesn't exist, (To continue interrupted processes)
 if not os.path.exists(path):
     os.makedirs(path)
     print(f"Directory {path} created.")
     folder_existed = False
 else:
     print(f"Directory {path} already exists.")
-    # folder_existed = True
-# SUBSET = 5000
-# COUNT = 9
+
+# Log rewards if wanted
 # reward_log = open(f"{path}/reward_{SUBSET*COUNT}_{SUBSET*COUNT+SUBSET}.log", "w")
+
+# Progress bar for dataset
 pbar = tqdm(range(len(dataset)), desc="Planning: ")
+
+
 for index in pbar:
     print(f"posession #{index}")
     observation = dataset.observations[index, 0]
 
+    # Accumulate ground truth rewards
     groundtruth_reward += dataset.rewards[index]
     game_info = dataset.trajectory_game_record[index].split(".npy")[0]
     
-
+    # Save ground truth observations if the folder didn't exist before
     if not folder_existed:
         savepath = os.path.join(f'{path}', f'{game_info}-{index}-groundtruth.npy')
         if not os.path.exists(savepath):
             torch.save(dataset.observations[index, :], savepath)
-    # 1/0
+    
+    # Save guided observations
     savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
     if use_hue:
         if not os.path.exists(savepath):
@@ -379,11 +392,13 @@ for index in pbar:
             values = torch.zeros(5)
             additional_conditions = {}
             num_iterations = int(np.ceil(1024 // first_num_of_observations))
+
             for n in range(5):
                 obs = observation
                 conditions = {0: observation}
                 # observations[n,0] = dataset.unnormalize(obs)
-                # for the below loop, the 'update hueristic function can switch from 2_3 to not by changes the name of the function manually
+
+                # For the below loop, the 'update hueristic function can switch from 2_3 to not by changes the name of the function manually
                 for i in range(num_iterations):
                     action, temp_samples = policy(conditions, batch_size=SAMPLING_NUM, verbose=args.verbose)
                     if (i == (num_iterations - 1)):
@@ -404,21 +419,12 @@ for index in pbar:
                             additional_conditions[(i*first_num_of_observations)+j + 1] = obs
                     # actions[n,i] = temp_samples.actions[0,1]
 
-                    #replace starting conditions (idea 1)
-                    # conditions = {0: obs}
+                    # Add in usable conditions
                     conditions.update(additional_conditions)
                     additional_conditions.clear()
-                    #add in condition (idea 2)
-                    # conditions[i+1] = obs
-                #     print(len(conditions))
-                #     if (len(conditions) > 400):
-                #         break
-                # break
-            # action, samples = policy(conditions, batch_size=5, verbose=args.verbose)
+
             t = make_timesteps(5, 0, policy.diffusion_model.betas.device)
-            # ipdb.set_trace()
-            # values = policy.guide(torch.tensor(observations).float().to('cuda:0'), None, t)
-            # values = policy.guide(torch.tensor(np.apply_along_axis(lambda obs: normalize(obs, dataset), 2, observations.copy())).float().to(args.device), None, t)
+
             values = policy.guide(policy.normalizer.unnormalize(torch.tensor(observations)).float().to(args.device), None, t)
 
             samples = Trajectories(
@@ -431,25 +437,16 @@ for index in pbar:
             conditions = {0: observation}
             action, samples = policy(conditions, batch_size=5, verbose=args.verbose)
 
-            #uncomment below
             total_reward = np.add(total_reward, samples.values.cpu().detach().numpy())
         
-        # print("GUIDED")
     if not folder_existed:
         if not os.path.exists(savepath):
             savepath = os.path.join(f'{path}', f'{game_info}-{index}-guided-245K.npy')
-            # print(savepath)
             torch.save(samples.observations, savepath)
-            # savepath = os.path.join(f'{path}', f'{game_info}-{index}-values_guided-245K.npy')
             # torch.save(samples.values.detach().cpu().numpy(), savepath)
             # print(samples.values)
 
-        # print("NON-GUIDED")
-        # savepath = os.path.join(f'{path}', f'{game_info}-{index}-nonguided-245K.npy')
-        # print(savepath)
-        # torch.save(non_guided_samples.observations, savepath)
-        # print(non_guided_samples.values)
-        # 1/0
+        # Log Rewards if wanted
         # reward_log.write(f"{game_info},{samples.values.cpu().detach().numpy()}")
         # reward_log.write("\n")
 
@@ -458,8 +455,8 @@ for index in pbar:
 
         pbar.set_description(f"[GT reward: {groundtruth_reward}] [Reward: {total_reward}]", refresh=True)
 
+# Final print statements
 print(f"Total reward: {total_reward}")
 print(f"[Mean: {total_reward.mean()}] [MAX: {total_reward.max()}] [Std: {total_reward.std()}]")
 print(f"Ground truth reward: {groundtruth_reward}")
-# print(SUBSET*COUNT, SUBSET*COUNT+SUBSET)
 
