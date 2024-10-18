@@ -1,41 +1,87 @@
-code for the working paper "Planning with Diffusion for Professional Basketball Player Behavior Synthesis."
+# PlayBest: Professional Basketball Player Behavior Synthesis via Planning with Diffusion
+PlayBest: Professional Basketball Player Behavior Synthesis via Planning with Diffusion
 
+This repository contains the source code and datasets for [PlayBest: Professional Basketball Player Behavior Synthesis via Planning with Diffusion](https://arxiv.org/pdf/2306.04090).
 
-Hueristic problem - We want to prove that the generated trajectories can be used in a real case, rather than just generating a 'realistic game'. In this, it is important to see trajectories generated against a team, rather than generating the trajectories for both teams all at once. We want valid, realistic, and adaptable trajectories in however an opposing team decides to move especially when not predicted by this model.
+## Links
 
+- [Requirements](#requirements)
+- [Overview](#overview)
+- [Data](#data)
+- [Training](#training)
+- [Plan Guided](#plan-guided)
+- [Generate Gifs](#generate-gifs)
+- [Generate Snapshots](#generate-snapshots)
+- [Citations](#citations)
 
+## Requirements
 
-To only do this for one team, we need to generate trajectories for all teams, then in post update the defending teams position to be that of hueristics, we do this in several different number of batches. The history is then also updated to be that of the hueristics and future frames are made based off the hueristics. The reason we tried different number of batches was to mimic the reaction times a player could actually have on the court to further explore how realistic the trajectories are.
+The code is written in Python 3.8. Before running, you need to first install the required packages by typing following commands (Using a virtual environment is recommended):
 
+```
+pip3 install -r requirements.txt
+```
 
-Types of hueristics:
-- Original - Defense players trail offensive players only allowing 1 defense player per offensive player. When close enough, defensive players always manage to be in front of the opposing players.
-- Loose - Defensive players trail offensive players only allowing 1 defense player per offensive player. We allow more of a distance between the pairs of players as well.
-- 2_3 - Just like 2-3 defense in a basketball game. Defensive players each get their own box to maintain and when an opposing player enters, they trail to defend against them. When overlapping happens, we still only allow 1 defensive player to any 1 offensive player (the closest one).
+## Overview
+**PLAYBEST** (Professional Basketball Player Behavior Synthesis via Planning with Diffusion) is a method for generating optimal, realistic basketball player trajectories using a diffusion probabilistic model. The framework tackles the complexity of decision-making in basketball by framing the process as a conditional trajectory generation task, informed by player motion tracking data from NBA games. PlayBest extends traditional diffusion models by incorporating a value function that guides the generation process, allowing for reward-based optimization of player strategies. This enables PlayBest to adaptively synthesize realistic basketball plays that align with professional tactics. Simulation studies confirm that the generated trajectories produce effective plays, demonstrating the model's ability to capture the nuanced dynamics of basketball games and outperform traditional methods in flexibility and adaptability.
 
+<p align="center">
+  <img src="overview_revised-1.png" width="800px"/>
+</p>
 
+## Data
 
+### Downloading Trajectories
 
-How to Run Plan Guided
+```bash
 
-We first set the device we want to use, and specify the dataset, logbase, and if we want to, load a specific instance of a trained model (if we dont want the most updated model if performance worsened and such). See the following example.
+```
 
-CUDA_VISIBLE_DEVICES=6 python ./scripts/plan_guided.py --dataset basketball_single_game_wd_act --logbase /local2/dmreynos/diffuser_bball/logs/ --diffusion_epoch epoch_50
+### Downloading Rewards
 
+```bash
 
-How to Run Training 
+```
 
-We run similarly here but we specify parameters also, these can be found in locomotion.py. Following is an example.
-
+## Training
+```
 CUDA_VISIBLE_DEVICES=2 python scripts/train.py --dataset basketball_single_game_wd --n_diffusion_steps 30 --action_weight 30 --ema_decay 0.996 --learning_rate 0.002 --savepath act30lre3 > "trainingoutput_act30lre3.log" 2>&1 
+```
+Parameters can be found in locomotion.py, above is an example.
 
+## Plan Guided
 
-Generate gifs
-Run the given gif pipeline and specify the path of the npy file generated from the previous plan guided.
+```
+CUDA_VISIBLE_DEVICES=6 python ./scripts/plan_guided.py --dataset basketball_single_game_wd_act --logbase /local2/dmreynos/diffuser_bball/logs/ --diffusion_epoch epoch_50
+```
+Specify the dataset, logbase, and optionally load a specific trained model (default is max epoch checkpoint)
 
+## Generate Gifs
+```
 python full_visual_pipeline.py --path /local2/dmreynos/diffuser_bball/logs/"guided_samples_test_cond100_0.1"/2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-1-guided-245K.npy
+```
 
-Generate still vizualization
-This one is a little different, but we just need the path after logs/ and without the .npy at the end. The numbers following represent the selection of the 5 trails for a given possession, start frame, end frame, and shooter player number respectively.
-
+## Generate Snapshots
+```
 python NBA-Player-Movements/shooter_png_dir/visual_2d.py guided_samplesact_(2_3)_50100_0.1/2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-15-guided-245K -1 233 300 3
+```
+The numbers following represent the selection of the 5 trials for a given possession, start frame, end frame, and shooter player number respectively.
+
+<p align="center">
+  <img src="snap_example.png" width="800px"/>
+</p>
+
+## Citations
+
+Please cite the following paper if you find this repo helpful for your research.
+```
+@article{chen2024playbestprofessionalbasketballplayer,
+  title={PlayBest: Professional Basketball Player Behavior Synthesis via Planning with Diffusion}, 
+  author={Chen, Xiusi and Wang, Wei-Yao and Hu, Ziniu and Reynoso, David and Jin, Kun and Liu, Mingyan and Brantingham, P. Jeffrey and Wang, Wei},
+  year={2024},
+  eprint={2306.04090},
+  archivePrefix={arXiv},
+  primaryClass={cs.AI},
+  url={https://arxiv.org/abs/2306.04090}
+}
+```

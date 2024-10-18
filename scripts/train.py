@@ -138,9 +138,4 @@ for i in range(n_epochs):
     trainer.train(n_train_steps=args.n_steps_per_epoch)
     trainer.save(f'epoch_{i}')
 
-# 'action_weight' 10
-# 'learning_rate' 2e-4,
-# 'gradient_accumulate_every' 2
-# 'ema_decay' 0.995,
-# 'loss_discount' 1
     
