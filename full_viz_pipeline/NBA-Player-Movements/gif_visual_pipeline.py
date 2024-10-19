@@ -108,7 +108,7 @@ def process_json(processed_moments, df, eventId):
 
 def visualize(npy_file):
 
-    json_file = "/local2/curtislam/0021500549.json"
+    json_file = "../data/0021500549.json"
     df = pd.read_json(json_file)
     df = df.drop(index=df.index.difference([0]))
 
