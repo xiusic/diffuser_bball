@@ -16,10 +16,10 @@ This repository contains the source code and datasets for [PlayBest: Professiona
 
 ## Requirements
 
-The code is written in Python 3.8. Before running, you need to first install the required packages by typing following commands (Using a virtual environment is recommended):
+The code is written in Python 3.8.15 Before running, you need to first install the required packages by typing following commands (Using a virtual environment is recommended):
 
 ```
-pip3 install -r requirements.txt
+conda env create -f environment.yml
 ```
 
 ## Overview
