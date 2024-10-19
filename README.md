@@ -26,7 +26,7 @@ pip3 install -r requirements.txt
 **PLAYBEST** (Professional Basketball Player Behavior Synthesis via Planning with Diffusion) is a method for generating optimal, realistic basketball player trajectories using a diffusion probabilistic model. The framework tackles the complexity of decision-making in basketball by framing the process as a conditional trajectory generation task, informed by player motion tracking data from NBA games. PlayBest extends traditional diffusion models by incorporating a value function that guides the generation process, allowing for reward-based optimization of player strategies. This enables PlayBest to adaptively synthesize realistic basketball plays that align with professional tactics. Simulation studies confirm that the generated trajectories produce effective plays, demonstrating the model's ability to capture the nuanced dynamics of basketball games and outperform traditional methods in flexibility and adaptability.
 
 <p align="center">
-  <img src="overview_revised-1.png" width="800px"/>
+  <img src="figs/overview_revised-1.png" width="800px"/>
 </p>
 
 ## Data
@@ -49,6 +49,8 @@ CUDA_VISIBLE_DEVICES=2 python scripts/train.py --dataset basketball_single_game_
 ```
 Parameters can be found in locomotion.py, above is an example.
 
+The best Hyperparameters found in our study can be found here(./Best_Hyper_Params.json).
+
 ## Plan Guided
 
 ```
@@ -68,7 +70,7 @@ python NBA-Player-Movements/shooter_png_dir/visual_2d.py guided_samplesact_(2_3)
 The numbers following represent the selection of the 5 trials for a given possession, start frame, end frame, and shooter player number respectively.
 
 <p align="center">
-  <img src="snap_example.png" width="800px"/>
+  <img src="figs/snap_example.png" width="800px"/>
 </p>
 
 ## Citations
