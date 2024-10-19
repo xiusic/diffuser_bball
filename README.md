@@ -47,7 +47,7 @@ conda env create -f environment.yml
 ```
 CUDA_VISIBLE_DEVICES=2 python scripts/train.py --dataset basketball_single_game_wd --n_diffusion_steps 30 --action_weight 30 --ema_decay 0.996 --learning_rate 0.002 --savepath act30lre3 > "trainingoutput_act30lre3.log" 2>&1 
 ```
-Parameters can be found in locomotion.py, above is an example.
+Parameters can be found in [locomotion.py](config/locomotion.py), above is an example.
 
 The best Hyperparameters found in our study can be found [here](./Best_Hyper_Params.json).
 
