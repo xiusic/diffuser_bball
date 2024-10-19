@@ -49,7 +49,7 @@ CUDA_VISIBLE_DEVICES=2 python scripts/train.py --dataset basketball_single_game_
 ```
 Parameters can be found in locomotion.py, above is an example.
 
-The best Hyperparameters found in our study can be found here(./Best_Hyper_Params.json).
+The best Hyperparameters found in our study can be found [here](./Best_Hyper_Params.json).
 
 ## Plan Guided
 
@@ -59,15 +59,22 @@ CUDA_VISIBLE_DEVICES=6 python ./scripts/plan_guided.py --dataset basketball_sing
 Specify the dataset, logbase, and optionally load a specific trained model (default is max epoch checkpoint)
 
 ## Generate Gifs
+Make sure you are in the full_viz_pipeline directory before running the following command:
 ```
 python full_visual_pipeline.py --path /local2/dmreynos/diffuser_bball/logs/"guided_samples_test_cond100_0.1"/2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-1-guided-245K.npy
 ```
 
 ## Generate Snapshots
+Make sure you are in the full_viz_pipeline directory before running the following command:
 ```
 python NBA-Player-Movements/shooter_png_dir/visual_2d.py guided_samplesact_(2_3)_50100_0.1/2016.NBA.Raw.SportVU.Game.Logs12.05.2015.POR.at.MIN_dir-15-guided-245K -1 233 300 3
 ```
-The numbers following represent the selection of the 5 trials for a given possession, start frame, end frame, and shooter player number respectively.
+First give the relative path to the possession you are looking at.
+The numbers following the command represent:
+- Selection of the 5 trials for the given possession
+- Start frame
+- End frame
+- Shooter player number
 
 <p align="center">
   <img src="figs/snap_example.png" width="800px"/>
