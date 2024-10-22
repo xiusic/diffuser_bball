@@ -84,13 +84,13 @@ The numbers following the command represent:
 
 Please cite the following paper if you find this repo helpful for your research.
 ```
-@article{chen2024playbestprofessionalbasketballplayer,
-  title={PlayBest: Professional Basketball Player Behavior Synthesis via Planning with Diffusion}, 
-  author={Chen, Xiusi and Wang, Wei-Yao and Hu, Ziniu and Reynoso, David and Jin, Kun and Liu, Mingyan and Brantingham, P. Jeffrey and Wang, Wei},
-  year={2024},
-  eprint={2306.04090},
-  archivePrefix={arXiv},
-  primaryClass={cs.AI},
-  url={https://arxiv.org/abs/2306.04090}
+@misc{chen2024playbestprofessionalbasketballplayer,
+      title={PlayBest: Professional Basketball Player Behavior Synthesis via Planning with Diffusion}, 
+      author={Xiusi Chen and Wei-Yao Wang and Ziniu Hu and David Reynoso and Kun Jin and Mingyan Liu and P. Jeffrey Brantingham and Wei Wang},
+      year={2024},
+      eprint={2306.04090},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2306.04090}, 
 }
 ```
