@@ -12,9 +12,8 @@ class Parser(utils.Parser):
     config: str = 'config.locomotion'
 
 args = Parser().parse_args('diffusion')
-
 args.horizon = 1024
-args.batch_size = 1024
+args.batch_size = 1300
 # args.learning_rate = 2e-5
 #-----------------------------------------------------------------------------#
 #---------------------------------- dataset ----------------------------------#
@@ -39,11 +38,11 @@ render_config = utils.Config(
 
 
 if args.dataset == "basketball_single_game":
-    dataset = BBSequenceDataset("/home/xchen/MURI/diffuser/0021500549.npy")
+    dataset = BBSequenceDataset("")
 elif args.dataset == "basketball_single_game_wd" or args.dataset == "basketball_single_game_wd_TS1000000":
-    dataset = BBwdSequenceDataset("/home/xchen/MURI/diffuser/0021500549_dir.npy")
+    dataset = BBwdSequenceDataset("../data/transpose_files/", reward_path="../data/2_final_json_rewards/")
 elif  args.dataset == "basketball_single_game_wDirStat":
-    dataset = BBwDirStatSequenceDataset("/home/xchen/MURI/diffuser/0021500549_dir_stats_reshape.npy")
+    dataset = BBwDirStatSequenceDataset("")
 else:
     dataset = dataset_config()
 
@@ -137,4 +136,6 @@ n_epochs = int(args.n_train_steps // args.n_steps_per_epoch)
 for i in range(n_epochs):
     print(f'Epoch {i} / {n_epochs} | {args.savepath}')
     trainer.train(n_train_steps=args.n_steps_per_epoch)
+    trainer.save(f'epoch_{i}')
 
+    

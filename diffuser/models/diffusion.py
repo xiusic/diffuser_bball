@@ -45,6 +45,7 @@ class GaussianDiffusion(nn.Module):
     def __init__(self, model, horizon, observation_dim, action_dim, n_timesteps=1000,
         loss_type='l1', clip_denoised=False, predict_epsilon=True,
         action_weight=1.0, loss_discount=1.0, loss_weights=None,
+        device = 'cuda:0',
     ):
         super().__init__()
         self.horizon = horizon
@@ -161,7 +162,7 @@ class GaussianDiffusion(nn.Module):
 
         batch_size = shape[0]
         x = torch.randn(shape, device=device)
-        x = apply_conditioning(x, cond, self.action_dim)
+        x = apply_conditioning(x, cond, self.action_dim, device)
 
         chain = [x] if return_chain else None
 
@@ -169,8 +170,10 @@ class GaussianDiffusion(nn.Module):
         for i in reversed(range(0, self.n_timesteps)):
             t = make_timesteps(batch_size, i, device)
             x, values = sample_fn(self, x, cond, t, **sample_kwargs)
-            x = apply_conditioning(x, cond, self.action_dim)
-
+            # print('look')
+            # print(x.shape) [5, 1024, 66]
+            # print(cond)
+            x = apply_conditioning(x, cond, self.action_dim, device)
             progress.update({'t': i, 'vmin': values.min().item(), 'vmax': values.max().item()})
             if return_chain: chain.append(x)
 
@@ -186,6 +189,8 @@ class GaussianDiffusion(nn.Module):
             conditions : [ (time, state), ... ]
         '''
         device = self.betas.device
+        # batch_size, num_conditions, condition_dim = cond.shape
+        # print('cs', device)
         batch_size = len(cond[0])
         horizon = horizon or self.horizon
         shape = (batch_size, horizon, self.transition_dim)
@@ -209,10 +214,10 @@ class GaussianDiffusion(nn.Module):
         noise = torch.randn_like(x_start)
 
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
-        x_noisy = apply_conditioning(x_noisy, cond, self.action_dim)
+        x_noisy = apply_conditioning(x_noisy, cond, self.action_dim, self.betas.device)
 
         x_recon = self.model(x_noisy, cond, t)
-        x_recon = apply_conditioning(x_recon, cond, self.action_dim)
+        x_recon = apply_conditioning(x_recon, cond, self.action_dim, self.betas.device)
 
         assert noise.shape == x_recon.shape
 
@@ -238,7 +243,7 @@ class ValueDiffusion(GaussianDiffusion):
         noise = torch.randn_like(x_start)
 
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
-        x_noisy = apply_conditioning(x_noisy, cond, self.action_dim)
+        x_noisy = apply_conditioning(x_noisy, cond, self.action_dim, self.betas.device)
 
         pred = self.model(x_noisy, cond, t)
 

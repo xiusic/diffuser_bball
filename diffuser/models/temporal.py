@@ -202,8 +202,9 @@ class ValueFunction(nn.Module):
         self.mid_block2 = ResidualTemporalBlock(mid_dim_2, mid_dim_3, kernel_size=5, embed_dim=time_dim, horizon=horizon)
         self.mid_down2 = Downsample1d(mid_dim_3)
         horizon = horizon // 2
-        ##
-        fc_dim = mid_dim_3 * max(horizon, 1)
+        ## hard code
+        # fc_dim = mid_dim_3 * max(horizon, 1)
+        fc_dim = 1024
 
         self.final_block = nn.Sequential(
             nn.Linear(fc_dim + time_dim, fc_dim // 2),

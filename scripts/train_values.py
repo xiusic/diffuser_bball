@@ -1,5 +1,7 @@
-import diffuser.utils as utils
 import pdb
+
+import diffuser.utils as utils
+from diffuser.datasets.sequence import BBSequenceDataset, BBwdValueDataset, BBwDirStatSequenceDataset
 
 
 #-----------------------------------------------------------------------------#
@@ -12,6 +14,13 @@ class Parser(utils.Parser):
 
 args = Parser().parse_args('values')
 
+## Override
+args.horizon = 1024
+args.batch_size = 512
+args.loader = 'datasets.BBwdValueDataset'
+# args.learning_rate = 2e-5
+# key: play id / possession
+# column [0] in .npy; 45x * 1024 * 66 (10 player + 1 ball w/ 6 features (x, y, z, dx, dy, dz))
 
 #-----------------------------------------------------------------------------#
 #---------------------------------- dataset ----------------------------------#
@@ -38,8 +47,17 @@ render_config = utils.Config(
     env=args.dataset,
 )
 
-dataset = dataset_config()
-renderer = render_config()
+if args.dataset == "basketball_single_game":
+    dataset = BBSequenceDataset("")
+elif args.dataset == "basketball_single_game_wd" or args.dataset == "basketball_single_game_wd_TS1000000":
+    dataset = BBwdValueDataset("../data/transpose_files/", reward_path="../data/2_final_json_rewards/")
+elif args.dataset == "basketball_single_game_wDirStat":
+    dataset = BBwDirStatSequenceDataset("")
+else:
+    dataset = dataset_config()
+
+# renderer = render_config()
+renderer = None
 
 observation_dim = dataset.observation_dim
 action_dim = dataset.action_dim
@@ -98,6 +116,8 @@ trainer = trainer_config(diffusion, dataset, renderer)
 #-----------------------------------------------------------------------------#
 #------------------------ test forward & backward pass -----------------------#
 #-----------------------------------------------------------------------------#
+
+utils.report_parameters(model)
 
 print('Testing forward...', end=' ', flush=True)
 batch = utils.batchify(dataset[0])

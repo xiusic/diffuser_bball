@@ -8,6 +8,9 @@ fuse.cfg
 
 *.ai
 
+# Testing 
+/Testing Files/
+
 # Generation results
 results/
 

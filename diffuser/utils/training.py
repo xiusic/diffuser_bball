@@ -61,12 +61,14 @@ class Trainer(object):
         results_folder='./results',
         n_reference=8,
         bucket=None,
+        device = 'cuda:0',
     ):
         super().__init__()
         self.model = diffusion_model
         self.ema = EMA(ema_decay)
         self.ema_model = copy.deepcopy(self.model)
         self.update_ema_every = update_ema_every
+        self.device = device
 
         self.step_start_ema = step_start_ema
         self.log_freq = log_freq
@@ -114,7 +116,7 @@ class Trainer(object):
         for step in tqdm(range(n_train_steps)):
             for i in range(self.gradient_accumulate_every):
                 batch = next(self.dataloader)
-                batch = batch_to_device(batch)
+                batch = batch_to_device(batch, self.device)
 
                 loss, infos = self.model.loss(*batch)
                 loss = loss / self.gradient_accumulate_every
@@ -204,7 +206,7 @@ class Trainer(object):
 
             ## get a single datapoint
             batch = self.dataloader_vis.__next__()
-            conditions = to_device(batch.conditions, 'cuda:0')
+            conditions = to_device(batch.conditions, self.device)
 
             ## repeat each item in conditions `n_samples` times
             conditions = apply_dict(
