@@ -34,13 +34,15 @@ conda env create -f environment.yml
 ### Downloading Trajectories
 
 ```bash
-
+gdown https://drive.google.com/uc?id=1SsRzqq1BYfcp9_a9V4bYJVWWIBG0gcAX -O ./data/transpose_files.zip
+unzip ./data/transpose_files.zip
 ```
 
 ### Downloading Rewards
 
 ```bash
-
+gdown https://drive.google.com/uc?id=1W3C_LN8qxX5wjqATMfeFMXoffol6O588 -O ./data/2_final_json_rewards.zip
+unzip ./data/2_final_json_rewards.zip
 ```
 
 ## Training
