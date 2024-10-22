@@ -118,8 +118,8 @@ diffusion_experiment = utils.load_diffusion(
 
 # Load value function experiment (specific to basketball)
 value_experiment = utils.load_diffusion(
-    "/local2/yao/diffuser/logs/" #args.loadbase
-    ,"basketball_single_game_wd_TS1000000" #args.dataset
+    args.loadbase
+    ,args.dataset
     , f'values/defaults_H{args.horizon}_T{args.n_diffusion_steps}_d{args.discount}', #device = args.device,
     epoch=args.value_epoch, seed=args.seed,
 )

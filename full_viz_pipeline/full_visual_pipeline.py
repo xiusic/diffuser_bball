@@ -1,6 +1,6 @@
 import argparse
 import sys
-sys.path.append('/full_viz_pipeline/NBA-Player-Movements')
+sys.path.append('./NBA-Player-Movements')
 from gif_visual_pipeline import visualize
 
 

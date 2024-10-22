@@ -45,13 +45,6 @@ class Event:
 
     def show(self):
         """
-        EDIT???
-
-        save_dir = "/local2/curtislam/guided_results_gif/"
-        saved_file_maybe = f'{save_dir}{self.fname[38:-5]}_{str(self.event_index)[-1]}.gif'
-        saved = os.listdir(save_dir)
-        if saved_file_maybe in saved:
-            raise Exception(saved_file_maybe + " has been saved.")
         """
 #        print("HERE")
         # Leave some space for inbound passes

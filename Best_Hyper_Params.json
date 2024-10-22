@@ -8,7 +8,7 @@
     "batch_size": 1024,
     "bucket": null,
     "clip_denoised": false,
-    "commit": "a3a3e0718b77121c086812233191e8539af3ade5 dev_david",
+    "commit": "",
     "config": "config.locomotion",
     "dataset": "basketball_single_game_wd",
     "device": "cuda",
@@ -67,8 +67,8 @@
     "reproducibility": {
         "command_line": "python scripts/train.py --dataset basketball_single_game_wd --learning_rate 0.0003 --action_weight 11 ema_decay 0.996 --savepath act",
         "git_has_uncommitted_changes": true,
-        "git_root": "/local2/dmreynos/diffuser_bball",
-        "git_url": "https://github.com/xiusic/diffuser_bball/tree/a3a3e0718b77121c086812233191e8539af3ade5",
+        "git_root": "",
+        "git_url": "",
         "time": "Tue Mar  5 01:52:39 2024"
     },
     "sample_freq": 20000,
@@ -78,7 +78,7 @@
     },
     "save_freq": 1000,
     "save_parallel": false,
-    "savepath": "/local2/dmreynos/diffuser_bball/logs/basketball_single_game_wd_act/diffusion/defaults_H1024_T100",
+    "savepath": "",
     "seed": null,
     "set_loadbase": {
         "_type": "python_object (type = method)",
